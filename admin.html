@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>B.D. Bajar • Admin</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Inter,Arial;background:#080d18;color:#e5e7eb}.wrap{width:min(1200px,95%);margin:auto;padding:22px}.card{background:#111827;border:1px solid #263244;border-radius:20px;padding:20px;margin:14px 0}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}@media(max-width:700px){.grid{grid-template-columns:1fr}}input,select{width:100%;padding:13px;border:1px solid #475569;background:#0b1220;color:white;border-radius:11px}label{font-size:13px;color:#aab4c5;display:block;margin:10px 0 6px}button{padding:12px 16px;border:0;border-radius:11px;background:#2563eb;color:#fff;font-weight:700;cursor:pointer}.danger{background:#dc2626}.secondary{background:#334155}.hidden{display:none}.top{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}@media(max-width:700px){.stats{grid-template-columns:repeat(2,1fr)}}.stat{background:#172033;border-radius:15px;padding:15px}.num{font-size:26px;font-weight:800}table{width:100%;border-collapse:collapse}th,td{padding:9px;border-bottom:1px solid #263244;text-align:left;font-size:13px}.msg{padding:11px;border-radius:10px;background:#172033;margin-top:10px}.ok{color:#4ade80}.warn{color:#fbbf24}.bad{color:#fb7185}.muted{color:#94a3b8}.list{max-height:420px;overflow:auto}
+</style></head>
+<body><main class="wrap">
+<section id="authBox" class="card">
+<h1>B.D. Bajar Admin</h1><p class="muted">First time? Create your admin account below. Use a strong password.</p>
+<div class="grid"><div><label>Admin Username</label><input id="aUser" placeholder="admin"></div><div><label>Password</label><input id="aPass" type="password" placeholder="Minimum 6 characters"></div></div>
+<div class="actions" style="margin-top:14px"><button id="createAdmin">Create First Admin</button><button id="adminLogin" class="secondary">Admin Login</button></div><div id="authMsg" class="msg hidden"></div>
+</section>
+
+<section id="app" class="hidden">
+<div class="top"><div><h1>Admin Dashboard</h1><div class="muted" id="adminName"></div></div><button id="logout" class="danger">Logout</button></div>
+<div class="stats">
+<div class="stat">Shops<div class="num" id="shopCount">0</div></div>
+<div class="stat">Employees<div class="num" id="empCount">0</div></div>
+<div class="stat">Present Today<div class="num" id="presentCount">0</div></div>
+<div class="stat">Attendance Records<div class="num" id="attCount">0</div></div>
+</div>
+
+<div class="card"><h2>⚙️ Shop / Branch Settings</h2>
+<div class="grid">
+<div><label>Shop Name</label><input id="shopName" placeholder="B.D. Bajar"></div>
+<div><label>Branch Name</label><input id="branchName" placeholder="Tiruppur Branch"></div>
+<div><label>Branch ID</label><input id="branchId" placeholder="BDB-001"></div>
+<div><label>Shop Logo URL (Storage not required)</label><input id="logoUrl" placeholder="https://..."></div>
+<div><label>Background Image URL</label><input id="bgUrl" placeholder="https://..."></div>
+<div><label>Address</label><input id="address" placeholder="Shop address"></div>
+</div><button id="addShop" style="margin-top:14px">+ Add Shop / Branch</button><div id="shopMsg" class="msg hidden"></div>
+<h3>Existing Shops</h3><div id="shops" class="list"></div></div>
+
+<div class="card"><h2>👨‍💼 Add Employee</h2>
+<div class="grid">
+<div><label>Employee Name</label><input id="eName"></div>
+<div><label>Username</label><input id="eUser"></div>
+<div><label>Password</label><input id="ePass" type="password"></div>
+<div><label>Employee Photo URL (optional)</label><input id="ePhoto"></div>
+<div><label>Shop / Branch</label><select id="eShop"></select></div>
+<div><label>Employee ID</label><input id="eId" placeholder="BDB-E001"></div>
+</div><button id="addEmployee" style="margin-top:14px">Create Employee</button><div id="empMsg" class="msg hidden"></div></div>
+
+<div class="card"><h2>📋 Employees</h2><div id="employees" class="list">Loading…</div></div>
+<div class="card"><h2>📅 Today's Attendance</h2><label>Selected date</label><input type="date" id="dateFilter"><div id="attendance" class="list">Loading…</div></div>
+</section></main>
+
+<script type="module">
+import {firebaseConfig,auth,db,loginEmail} from "./firebase-config.js";
+import {initializeApp,getApps} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import {getAuth,createUserWithEmailAndPassword,signInWithEmailAndPassword,signOut,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import {ref,get,set,update} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
+
+const $=id=>document.getElementById(id);let shops={},employees={},adminUser=null;
+const dateKey=()=>new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Kolkata"}).format(new Date());
+$("dateFilter").value=dateKey();$("dateFilter").onchange=loadAttendance;
+function show(el,text,type=""){el.textContent=text;el.className="msg "+type;el.classList.remove("hidden")}
+function esc(x){return String(x??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
+
+async function makeAdmin(){
+ const u=$("aUser").value.trim().toLowerCase(),p=$("aPass").value;
+ if(!u||p.length<6)return show($("authMsg"),"Username and password required; password must be 6+ characters.","bad");
+ try{
+   const cred=await createUserWithEmailAndPassword(auth,loginEmail(u),p);
+   await set(ref(db,"users/"+cred.user.uid),{uid:cred.user.uid,role:"admin",username:u,name:"Administrator",createdAt:Date.now()});
+   show($("authMsg"),"Admin created. Opening dashboard…","ok");
+ }catch(e){show($("authMsg"),e.message,"bad")}
+}
+$("createAdmin").onclick=makeAdmin;
+$("adminLogin").onclick=async()=>{
+ const u=$("aUser").value.trim().toLowerCase(),p=$("aPass").value;
+ try{await signInWithEmailAndPassword(auth,loginEmail(u),p)}catch(e){show($("authMsg"),e.message,"bad")}
+};
+onAuthStateChanged(auth,async user=>{
+ if(!user){$("app").classList.add("hidden");$("authBox").classList.remove("hidden");return}
+ const s=await get(ref(db,"users/"+user.uid));if(!s.exists()||s.val().role!=="admin"){await signOut(auth);return}
+ adminUser={uid:user.uid,...s.val()};$("authBox").classList.add("hidden");$("app").classList.remove("hidden");$("adminName").textContent="Logged in as "+(adminUser.username||"admin");await refresh();
+});
+async function refresh(){
+ const s=await get(ref(db,"shops"));shops=s.exists()?s.val():{};
+ const e=await get(ref(db,"users"));employees={};if(e.exists())Object.entries(e.val()).forEach(([uid,v])=>{if(v.role==="employee")employees[uid]=v});
+ $("shopCount").textContent=Object.keys(shops).length;$("empCount").textContent=Object.keys(employees).length;
+ $("eShop").innerHTML=Object.entries(shops).map(([id,v])=>`<option value="${id}">${esc(v.shopName)} — ${esc(v.branchName||"")}</option>`).join("");
+ renderShops();renderEmployees();await loadAttendance();
+}
+$("addShop").onclick=async()=>{
+ const name=$("shopName").value.trim(),branch=$("branchName").value.trim(),bid=$("branchId").value.trim()||("BR-"+Date.now());
+ if(!name||!branch)return show($("shopMsg"),"Shop name and branch name required.","bad");
+ const id="shop_"+Date.now();const data={shopName:name,branchName:branch,branchId:bid,logoUrl:$("logoUrl").value.trim(),backgroundUrl:$("bgUrl").value.trim(),address:$("address").value.trim(),active:true,createdAt:Date.now()};
+ await set(ref(db,"shops/"+id),data);await refresh();show($("shopMsg"),"Shop/branch added.","ok");
+ ["shopName","branchName","branchId","logoUrl","bgUrl","address"].forEach(x=>$(x).value="");
+};
+function renderShops(){
+ $("shops").innerHTML=Object.entries(shops).map(([id,v])=>`<div style="padding:12px;border-bottom:1px solid #263244"><b>${esc(v.shopName)}</b> — ${esc(v.branchName||"")} <span class="muted">(${esc(id)})</span><br><span class="muted">${esc(v.address||"")}</span></div>`).join("")||"<span class='muted'>No shops yet.</span>";
+}
+$("addEmployee").onclick=async()=>{
+ const name=$("eName").value.trim(),u=$("eUser").value.trim().toLowerCase().replace(/\s+/g,""),p=$("ePass").value,shopId=$("eShop").value;
+ if(!name||!u||p.length<6||!shopId)return show($("empMsg"),"Name, username, password, shop required.","bad");
+ if(Object.values(employees).some(x=>x.username===u))return show($("empMsg"),"Username already exists.","bad");
+ try{
+   // Secondary Firebase app: creating employee does not log the admin out.
+   const nameKey="employeeCreator_"+Date.now();const secondary=initializeApp(firebaseConfig,nameKey);const secAuth=getAuth(secondary);
+   const cred=await createUserWithEmailAndPassword(secAuth,loginEmail(u),p);
+   const shop=shops[shopId];const eid=$("eId").value.trim()||("EMP-"+Date.now());
+   const profile={uid:cred.user.uid,role:"employee",employeeId:eid,name,username:u,photoUrl:$("ePhoto").value.trim(),shopId,branchId:shop.branchId||"",createdAt:Date.now(),active:true};
+   await set(ref(db,"users/"+cred.user.uid),profile);
+   await set(ref(db,"employeeIndex/"+shopId+"/"+cred.user.uid),{uid:cred.user.uid,name,username:u});
+   await signOut(secAuth);show($("empMsg"),"Employee created successfully.","ok");await refresh();
+   ["eName","eUser","ePass","ePhoto","eId"].forEach(x=>$(x).value="");
+ }catch(e){show($("empMsg"),e.message,"bad")}
+};
+function renderEmployees(){
+ $("employees").innerHTML="<table><tr><th>Name</th><th>Username</th><th>Shop</th><th>ID</th><th>Status</th></tr>"+
+ Object.values(employees).map(v=>`<tr><td>${esc(v.name)}</td><td>${esc(v.username)}</td><td>${esc(shops[v.shopId]?.shopName||"")}</td><td>${esc(v.employeeId)}</td><td>${v.active!==false?"<span class='ok'>Active</span>":"Disabled"}</td></tr>`).join("")+"</table>";
+}
+async function loadAttendance(){
+ const day=$("dateFilter").value||dateKey(),parts=[];
+ let count=0;
+ for(const [uid,e] of Object.entries(employees)){
+   const s=await get(ref(db,"attendance/"+uid+"/"+day));
+   if(s.exists()){count++;const v=s.val();parts.push(`<tr><td>${esc(e.name)}</td><td>${esc(shops[e.shopId]?.shopName||"")}</td><td>${esc(v.status||"present")}</td><td>${esc(v.checkIn||"—")}</td><td>${esc(v.checkOut||"—")}</tr>`)}
+   else parts.push(`<tr><td>${esc(e.name)}</td><td>${esc(shops[e.shopId]?.shopName||"")}</td><td class="bad">ABSENT</td><td>—</td><td>—</td></tr>`);
+ }
+ $("presentCount").textContent=count;$("attCount").textContent=count;
+ $("attendance").innerHTML="<table><tr><th>Employee</th><th>Shop</th><th>Status</th><th>In</th><th>Out</th></tr>"+parts.join("")+"</table>";
+}
+$("logout").onclick=()=>signOut(auth);
+</script></body></html>

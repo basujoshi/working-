@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>B.D. Bajar • Employee Attendance</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Inter,Arial,sans-serif;background:#0b1020;color:#eef2ff;min-height:100vh}
+.bg{position:fixed;inset:0;background:radial-gradient(circle at 20% 10%,#1d4ed8 0,transparent 35%),radial-gradient(circle at 90% 80%,#7c3aed 0,transparent 35%);opacity:.35;z-index:-1}
+.wrap{width:min(960px,94%);margin:auto;padding:25px 0}.card{background:rgba(15,23,42,.82);border:1px solid #334155;border-radius:22px;padding:22px;box-shadow:0 20px 70px #0008;backdrop-filter:blur(15px);margin:15px 0}
+h1,h2,h3{margin-top:0}.brand{display:flex;gap:14px;align-items:center}.logo{width:62px;height:62px;border-radius:18px;object-fit:cover;background:#1e293b}.muted{color:#94a3b8}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}@media(max-width:650px){.grid{grid-template-columns:1fr}}
+input,select{width:100%;padding:14px;border-radius:12px;border:1px solid #475569;background:#0f172a;color:white;outline:none}label{display:block;font-size:13px;color:#cbd5e1;margin:12px 0 6px}
+button{border:0;border-radius:12px;padding:13px 17px;font-weight:700;cursor:pointer;background:#2563eb;color:white}button.secondary{background:#334155}button.danger{background:#dc2626}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:15px}
+.shop{display:flex;align-items:center;gap:13px;padding:13px;border:1px solid #334155;border-radius:15px;margin-top:9px;cursor:pointer}.shop:hover{border-color:#60a5fa}.shop img{width:52px;height:52px;border-radius:13px;object-fit:cover;background:#1e293b}
+.hidden{display:none!important}.status{padding:10px;border-radius:12px;background:#172033;margin:10px 0}.ok{color:#4ade80}.bad{color:#fb7185}.warn{color:#fbbf24}.big{font-size:28px;font-weight:800}.camera{width:100%;max-height:300px;object-fit:cover;border-radius:16px;background:#020617}.pill{display:inline-block;padding:6px 10px;border-radius:999px;background:#172554;margin:3px}
+table{width:100%;border-collapse:collapse}td,th{padding:10px;border-bottom:1px solid #334155;text-align:left;font-size:13px}
+</style>
+</head>
+<body><div class="bg"></div><main class="wrap">
+
+<section id="searchView" class="card">
+  <div class="brand"><img id="shopLogo" class="logo" src="" alt=""><div><h1>B.D. Bajar Attendance</h1><div class="muted">Find your shop and branch</div></div></div>
+  <label>Search / Enter Your Shop Name</label>
+  <input id="shopSearch" placeholder="e.g. B.D. Bajar" autocomplete="off">
+  <div id="shopList"></div>
+</section>
+
+<section id="loginView" class="card hidden">
+  <button class="secondary" id="backBtn">← Change Shop</button>
+  <div id="selectedShop"></div>
+  <label>Enter Your Name</label><input id="employeeName" placeholder="Your name">
+  <div id="employeeHint" class="muted" style="margin-top:8px"></div>
+  <label>Username</label><input id="username" autocomplete="username">
+  <label>Password</label><input id="password" type="password" autocomplete="current-password">
+  <button id="loginBtn" style="width:100%;margin-top:15px">LOGIN</button>
+  <div id="loginMsg" class="status hidden"></div>
+</section>
+
+<section id="dashboard" class="card hidden">
+  <div class="brand"><img id="myPhoto" class="logo" src=""><div><h2 id="hello">Welcome</h2><div id="branchText" class="muted"></div></div></div>
+  <div id="todayStatus" class="status"></div>
+  <div class="grid">
+    <div><div class="muted">Date</div><div class="big" id="todayDate">—</div></div>
+    <div><div class="muted">Current time</div><div class="big" id="clock">—</div></div>
+  </div>
+  <div class="card" style="margin:15px 0 0;padding:15px">
+    <h3>Attendance</h3>
+    <video id="video" class="camera" autoplay playsinline muted></video>
+    <canvas id="canvas" class="hidden"></canvas>
+    <div class="actions">
+      <button id="cameraBtn" class="secondary">📷 Start Camera</button>
+      <button id="inBtn">✓ CHECK IN</button>
+      <button id="outBtn" class="secondary">CHECK OUT</button>
+      <button id="logoutBtn" class="danger">LOGOUT</button>
+    </div>
+    <div id="locationText" class="status">📍 Location: waiting…</div>
+    <div id="attendanceMsg" class="status hidden"></div>
+  </div>
+  <div class="card" style="margin:15px 0 0;padding:15px"><h3>My Attendance History</h3><div id="history">Loading…</div></div>
+</section>
+</main>
+
+<script type="module">
+import {auth,db,loginEmail} from "./firebase-config.js";
+import {signInWithEmailAndPassword,onAuthStateChanged,signOut} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import {ref,get,set,update} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
+
+const $=id=>document.getElementById(id);
+let shops={}, selectedShop=null, profile=null, stream=null, coords=null;
+
+function msg(el,text,type=""){el.textContent=text;el.className="status "+(type==="ok"?"ok":type==="bad"?"bad":type==="warn"?"warn":"");el.classList.remove("hidden")}
+function dateKey(){return new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Kolkata"}).format(new Date())}
+function timeNow(){return new Intl.DateTimeFormat("en-IN",{timeZone:"Asia/Kolkata",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:true}).format(new Date())}
+function tick(){$("clock").textContent=timeNow();$("todayDate").textContent=dateKey()} setInterval(tick,1000);tick();
+
+async function loadShops(){
+  const s=await get(ref(db,"shops")); shops=s.exists()?s.val():{};
+  renderShops("");
+}
+function renderShops(q){
+  $("shopList").innerHTML="";
+  const arr=Object.entries(shops).filter(([id,s])=>(s.active!==false)&&((s.shopName||"").toLowerCase().includes(q.toLowerCase())));
+  if(!arr.length){$("shopList").innerHTML='<div class="muted" style="padding:20px">No shop found.</div>';return}
+  arr.forEach(([id,s])=>{
+    const d=document.createElement("div");d.className="shop";
+    d.innerHTML=`<img src="${s.logoUrl||""}" onerror="this.style.visibility='hidden'"><div><b>${esc(s.shopName||id)}</b><div class="muted">${esc(s.address||"")} ${s.branchName?"• "+esc(s.branchName):""}</div></div>`;
+    d.onclick=()=>chooseShop(id,s);$("shopList").appendChild(d);
+  });
+}
+function chooseShop(id,s){selectedShop={id,...s};$("searchView").classList.add("hidden");$("loginView").classList.remove("hidden");$("selectedShop").innerHTML=`<h2>${esc(s.shopName)}</h2><div class="muted">${esc(s.branchName||"")}</div>`;$("employeeName").focus()}
+$("shopSearch").oninput=e=>renderShops(e.target.value);
+$("backBtn").onclick=()=>{$("loginView").classList.add("hidden");$("searchView").classList.remove("hidden")};
+
+$("employeeName").oninput=async()=>{
+ const name=$("employeeName").value.trim().toLowerCase();$("employeeHint").textContent="";
+ if(!name||!selectedShop)return;
+ const snap=await get(ref(db,"employeeIndex/"+selectedShop.id));
+ if(snap.exists()){
+   const found=Object.values(snap.val()).find(x=>(x.name||"").toLowerCase()===name);
+   if(found) $("employeeHint").innerHTML=`<span class="ok">✓ Employee found: ${esc(found.name)}</span>`;
+ }
+};
+
+$("loginBtn").onclick=async()=>{
+ const username=$("username").value.trim().toLowerCase(),password=$("password").value;
+ if(!selectedShop||!username||!password)return msg($("loginMsg"),"Shop, username and password are required.","bad");
+ try{
+   const cred=await signInWithEmailAndPassword(auth,loginEmail(username),password);
+   const p=await get(ref(db,"users/"+cred.user.uid));
+   if(!p.exists()||p.val().role!=="employee") throw new Error("This account is not an employee account.");
+   const v=p.val();
+   if(v.shopId!==selectedShop.id) throw new Error("This employee is assigned to another shop.");
+   if(v.branchId && selectedShop.branchId && v.branchId!==selectedShop.branchId) throw new Error("Wrong branch.");
+   profile={uid:cred.user.uid,...v};
+ }catch(e){await signOut(auth).catch(()=>{});msg($("loginMsg"),e.message||"Login failed.","bad")}
+};
+
+onAuthStateChanged(auth,async user=>{
+ if(!user)return;
+ const p=await get(ref(db,"users/"+user.uid));
+ if(!p.exists()||p.val().role!=="employee")return;
+ profile={uid:user.uid,...p.val()};
+ if(!selectedShop){
+   const s=shops[profile.shopId]; if(s) selectedShop={id:profile.shopId,...s};
+ }
+ if(!selectedShop||profile.shopId!==selectedShop.id){await signOut(auth);return}
+ $("searchView").classList.add("hidden");$("loginView").classList.add("hidden");$("dashboard").classList.remove("hidden");
+ $("hello").textContent="Welcome, "+(profile.name||"Employee")+" 👋";
+ $("branchText").textContent=(selectedShop.shopName||"")+" • "+(selectedShop.branchName||profile.branchId||"");
+ $("myPhoto").src=profile.photoUrl||selectedShop.logoUrl||"";
+ await startLocation(); await loadToday(); await loadHistory();
+});
+
+async function startLocation(){
+ if(!navigator.geolocation){$("locationText").textContent="📍 Location unavailable in this browser";return}
+ navigator.geolocation.watchPosition(p=>{coords={lat:p.coords.latitude,lng:p.coords.longitude,accuracy:p.coords.accuracy};$("locationText").innerHTML=`📍 Location ready • ±${Math.round(coords.accuracy)}m`;},e=>$("locationText").textContent="📍 Location permission required: "+e.message,{enableHighAccuracy:true,maximumAge:10000,timeout:15000});
+}
+$("cameraBtn").onclick=async()=>{
+ try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"},audio:false});$("video").srcObject=stream;msg($("attendanceMsg"),"Camera ready. A selfie will be captured for this attendance event.","ok")}
+ catch(e){msg($("attendanceMsg"),"Camera permission denied/unavailable. Attendance can still be recorded if admin allows it.","warn")}
+};
+async function capture(){
+ if(!stream)return null;
+ $("canvas").width=$("video").videoWidth||640;$("canvas").height=$("video").videoHeight||480;
+ $("canvas").getContext("2d").drawImage($("video"),0,0,$("canvas").width,$("canvas").height);
+ return $("canvas").toDataURL("image/jpeg",.45);
+}
+async function saveAttendance(kind){
+ if(!profile)return;
+ const key=dateKey(), path=ref(db,"attendance/"+profile.uid+"/"+key), snap=await get(path), old=snap.exists()?snap.val():{};
+ if(kind==="in" && old.checkIn)return msg($("attendanceMsg"),"You already checked in today.","warn");
+ if(kind==="out" && !old.checkIn)return msg($("attendanceMsg"),"Check in first.","warn");
+ const selfie=await capture();
+ const now=timeNow(), data={...old,employeeId:profile.uid,employeeName:profile.name||"",shopId:profile.shopId,branchId:profile.branchId||selectedShop.branchId||"",status:"present",updatedAt:Date.now()};
+ if(kind==="in"){data.checkIn=now;if(coords){data.checkInLocation=coords} if(selfie)data.checkInSelfie=selfie}
+ else {data.checkOut=now;if(coords){data.checkOutLocation=coords} if(selfie)data.checkOutSelfie=selfie}
+ await set(path,data);msg($("attendanceMsg"),kind==="in"?"Check-in saved successfully.":"Check-out saved successfully.","ok");await loadToday();await loadHistory();
+}
+$("inBtn").onclick=()=>saveAttendance("in");$("outBtn").onclick=()=>saveAttendance("out");
+async function loadToday(){
+ const s=await get(ref(db,"attendance/"+profile.uid+"/"+dateKey()));const v=s.exists()?s.val():null;
+ $("todayStatus").innerHTML=v?`<b class="ok">● PRESENT</b> &nbsp; Check-in: ${esc(v.checkIn||"—")} &nbsp; Check-out: ${esc(v.checkOut||"Not yet")}`:"<b class='warn'>● NOT CHECKED IN</b>";
+}
+async function loadHistory(){
+ const s=await get(ref(db,"attendance/"+profile.uid)); if(!s.exists()){ $("history").innerHTML="<span class='muted'>No attendance yet.</span>";return}
+ const rows=Object.entries(s.val()).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,31);
+ $("history").innerHTML="<table><tr><th>Date</th><th>Status</th><th>In</th><th>Out</th></tr>"+rows.map(([d,v])=>`<tr><td>${d}</td><td>${esc(v.status||"present")}</td><td>${esc(v.checkIn||"—")}</td><td>${esc(v.checkOut||"—")}</td></tr>`).join("")+"</table>";
+}
+$("logoutBtn").onclick=async()=>{if(stream)stream.getTracks().forEach(t=>t.stop());await signOut(auth);location.reload()};
+function esc(x){return String(x??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
+loadShops().catch(e=>console.error(e));
+</script></body></html>
