@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Attendance • Employee</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Inter,sans-serif;background:#07101f;color:#f8fafc;min-height:100vh}
+.bg{position:fixed;inset:0;background:radial-gradient(circle at 10% 10%,#2563eb55,transparent 35%),radial-gradient(circle at 90% 80%,#7c3aed55,transparent 35%);z-index:-1}
+.wrap{width:min(980px,94%);margin:auto;padding:24px 0}.card{background:#0f172add;border:1px solid #334155;border-radius:22px;padding:20px;margin:14px 0;box-shadow:0 20px 60px #0006;backdrop-filter:blur(14px)}
+.brand{display:flex;gap:14px;align-items:center}.logo{width:64px;height:64px;border-radius:18px;object-fit:cover;background:#1e293b}.muted{color:#94a3b8}label{display:block;margin:12px 0 6px;color:#cbd5e1;font-size:13px}
+input{width:100%;padding:14px;border:1px solid #475569;background:#0b1220;color:#fff;border-radius:12px;outline:none}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}@media(max-width:650px){.grid{grid-template-columns:1fr}}
+button{padding:13px 17px;border:0;border-radius:12px;background:#2563eb;color:#fff;font-weight:800;cursor:pointer}.secondary{background:#334155}.danger{background:#dc2626}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.shop{display:flex;gap:12px;align-items:center;border:1px solid #334155;border-radius:16px;padding:13px;margin-top:9px;cursor:pointer}.shop:hover{border-color:#60a5fa}.shop img{width:55px;height:55px;border-radius:14px;object-fit:cover}.hidden{display:none!important}.status{padding:12px;border-radius:12px;background:#172033;margin:10px 0}.ok{color:#4ade80}.bad{color:#fb7185}.warn{color:#fbbf24}.big{font-size:27px;font-weight:800}.camera{width:100%;max-height:320px;object-fit:cover;border-radius:16px;background:#020617}table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px solid #334155;text-align:left;font-size:13px}
+</style></head><body><div class="bg"></div><main class="wrap">
+<section id="companyView" class="card">
+<div class="brand"><div class="logo" style="display:grid;place-items:center;font-size:27px">🏢</div><div><h1>Employee Attendance</h1><div class="muted">Search your company</div></div></div>
+<label>Search / Enter Your Company Name</label><input id="search" placeholder="B.D. Bajar, Anpan, Brandsline..." autocomplete="off"><div id="companies"></div>
+</section>
+
+<section id="loginView" class="card hidden"><button id="back" class="secondary">← Change Company</button><div id="companyInfo" style="margin-top:14px"></div>
+<label>Enter Your Name</label><input id="empName" placeholder="Your name"><div id="empFound" class="muted"></div>
+<label>Username</label><input id="username" autocomplete="username"><label>Password</label><input id="password" type="password" autocomplete="current-password">
+<button id="login" style="width:100%;margin-top:15px">LOGIN</button><div id="loginMsg" class="status hidden"></div></section>
+
+<section id="dash" class="card hidden">
+<div class="brand"><img id="myPhoto" class="logo"><div><h2 id="hello">Welcome</h2><div id="companyBranch" class="muted"></div></div></div>
+<div id="today" class="status"></div><div class="grid"><div><div class="muted">Date</div><div id="date" class="big"></div></div><div><div class="muted">Time</div><div id="clock" class="big"></div></div></div>
+<div class="card" style="padding:15px"><h3>📸 Attendance Camera</h3><video id="video" class="camera" autoplay muted playsinline></video><canvas id="canvas" class="hidden"></canvas>
+<div class="actions"><button id="cam" class="secondary">Start Camera</button><button id="checkin">✓ CHECK IN</button><button id="checkout" class="secondary">CHECK OUT</button><button id="logout" class="danger">LOGOUT</button></div>
+<div id="loc" class="status">📍 Getting location permission…</div><div id="attMsg" class="status hidden"></div></div>
+<div class="card" style="padding:15px"><h3>Attendance History</h3><div id="history"></div></div>
+</section></main>
+
+<script type="module">
+import {auth,db,loginEmail} from "./firebase-config.js";
+import {signInWithEmailAndPassword,signOut,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import {ref,get,set} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
+const $=id=>document.getElementById(id);let companies={},selected=null,profile=null,stream=null,coords=null;
+const esc=x=>String(x??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
+const day=()=>new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Kolkata"}).format(new Date());
+const time=()=>new Intl.DateTimeFormat("en-IN",{timeZone:"Asia/Kolkata",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:true}).format(new Date());
+function message(t,c=""){ $("attMsg").textContent=t;$("attMsg").className="status "+c;$("attMsg").classList.remove("hidden") }
+function tick(){$("date").textContent=day();$("clock").textContent=time()}setInterval(tick,1000);tick();
+
+async function loadCompanies(){let s=await get(ref(db,"companies"));companies=s.exists()?s.val():{};renderCompanies("")}
+function renderCompanies(q){let a=Object.entries(companies).filter(([id,c])=>c.active!==false&&(c.name||"").toLowerCase().includes(q.toLowerCase()));$("companies").innerHTML=a.length?a.map(([id,c])=>`<div class="shop" data-id="${id}"><img src="${c.logoUrl||""}" onerror="this.style.visibility='hidden'"><div><b>${esc(c.name)}</b><div class="muted">${esc(c.address||"")}</div></div></div>`).join(""):"<div class='muted' style='padding:18px'>No company found.</div>";document.querySelectorAll(".shop").forEach(x=>x.onclick=()=>choose(x.dataset.id))}
+async function choose(id){selected={id,...companies[id]};$("companyView").classList.add("hidden");$("loginView").classList.remove("hidden");$("companyInfo").innerHTML=`<div class="brand"><img class="logo" src="${selected.logoUrl||""}" onerror="this.style.visibility='hidden'"><div><h2>${esc(selected.name)}</h2><div class="muted">Company selected</div></div></div>`;$("empName").focus()}
+$("search").oninput=e=>renderCompanies(e.target.value);$("back").onclick=()=>{$("loginView").classList.add("hidden");$("companyView").classList.remove("hidden")};
+
+$("empName").oninput=async()=>{if(!selected)return;let n=$("empName").value.trim().toLowerCase();if(!n)return $("empFound").textContent="";let s=await get(ref(db,"employeeIndex/"+selected.id));let hit=s.exists()?Object.values(s.val()).find(v=>(v.name||"").toLowerCase()===n):null;$("empFound").innerHTML=hit?`<span class="ok">✓ Employee found</span>`:""};
+$("login").onclick=async()=>{try{let u=$("username").value.trim().toLowerCase(),p=$("password").value;if(!selected||!u||!p)return message("Company, username and password required.","bad");let c=await signInWithEmailAndPassword(auth,loginEmail(u),p);let s=await get(ref(db,"users/"+c.user.uid));if(!s.exists()||s.val().role!=="employee")throw Error("Employee account not found.");profile={uid:c.user.uid,...s.val()};if(profile.companyId!==selected.id)throw Error("This employee belongs to another company.");openDash()}catch(e){await signOut(auth).catch(()=>{});$("loginMsg").textContent=e.message;$("loginMsg").className="status bad";$("loginMsg").classList.remove("hidden")}};
+
+async function openDash(){ $("companyView").classList.add("hidden");$("loginView").classList.add("hidden");$("dash").classList.remove("hidden");$("hello").textContent="Welcome, "+profile.name+" 👋";$("companyBranch").textContent=selected.name+" • "+(profile.branchName||profile.branchId||"");$("myPhoto").src=profile.photoUrl||selected.logoUrl||"";navigator.geolocation?.watchPosition(p=>{coords={lat:p.coords.latitude,lng:p.coords.longitude,accuracy:p.coords.accuracy};$("loc").innerHTML=`📍 Location ready • ±${Math.round(coords.accuracy)}m`},e=>$("loc").innerHTML="📍 Location permission required: "+esc(e.message),{enableHighAccuracy:true,maximumAge:10000,timeout:15000});await today();await history()}
+onAuthStateChanged(auth,async u=>{if(!u)return;let s=await get(ref(db,"users/"+u.uid));if(s.exists()&&s.val().role==="employee"){profile={uid:u.uid,...s.val()};selected={id:profile.companyId,...companies[profile.companyId]};if(selected.name)openDash()}});
+$("cam").onclick=async()=>{try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"},audio:false});$("video").srcObject=stream;message("Camera ready. Attendance selfie will be captured.","ok")}catch(e){message("Camera permission denied. Please allow camera access.","bad")}};
+async function selfie(){if(!stream)return null;$("canvas").width=$("video").videoWidth||640;$("canvas").height=$("video").videoHeight||480;$("canvas").getContext("2d").drawImage($("video"),0,0,$("canvas").width,$("canvas").height);return $("canvas").toDataURL("image/jpeg",.45)}
+async function save(kind){let path=ref(db,"attendance/"+profile.uid+"/"+day()),s=await get(path),old=s.exists()?s.val():{};if(kind==="in"&&old.checkIn)return message("Already checked in today.","warn");if(kind==="out"&&!old.checkIn)return message("Check in first.","warn");let v={...old,employeeId:profile.uid,employeeName:profile.name,companyId:profile.companyId,branchId:profile.branchId||"",status:"present",updatedAt:Date.now()};let pic=await selfie();if(kind==="in"){v.checkIn=time();if(coords)v.checkInLocation=coords;if(pic)v.checkInSelfie=pic}else{v.checkOut=time();if(coords)v.checkOutLocation=coords;if(pic)v.checkOutSelfie=pic}await set(path,v);message(kind==="in"?"Check-in successful.":"Check-out successful.","ok");await today();await history()}
+$("checkin").onclick=()=>save("in");$("checkout").onclick=()=>save("out");
+async function today(){let s=await get(ref(db,"attendance/"+profile.uid+"/"+day()));let v=s.exists()?s.val():null;$("today").innerHTML=v?`<span class="ok">● PRESENT</span> &nbsp; Check-in: ${esc(v.checkIn||"—")} &nbsp; Check-out: ${esc(v.checkOut||"Not yet")}`:"<span class='warn'>● NOT CHECKED IN</span>"}
+async function history(){let s=await get(ref(db,"attendance/"+profile.uid));if(!s.exists())return $("history").innerHTML="<span class='muted'>No attendance yet.</span>";let rows=Object.entries(s.val()).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,31);$("history").innerHTML="<table><tr><th>Date</th><th>Status</th><th>In</th><th>Out</th></tr>"+rows.map(([d,v])=>`<tr><td>${d}</td><td>${esc(v.status)}</td><td>${esc(v.checkIn||"—")}</td><td>${esc(v.checkOut||"—")}</td></tr>`).join("")+"</table>"}
+$("logout").onclick=async()=>{if(stream)stream.getTracks().forEach(t=>t.stop());await signOut(auth);location.reload()};
+loadCompanies();
+</script></body></html>
