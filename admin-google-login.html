@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Multi-Company Attendance Admin</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Inter,sans-serif;background:#07101f;color:#f8fafc;min-height:100vh}
+body:before{content:"";position:fixed;inset:0;background:radial-gradient(circle at 15% 10%,#2563eb55,transparent 35%),radial-gradient(circle at 90% 85%,#7c3aed55,transparent 35%);z-index:-1}
+.wrap{width:min(1250px,95%);margin:auto;padding:22px}.card{background:#0f172edd;border:1px solid #334155;border-radius:22px;padding:20px;margin:14px 0;box-shadow:0 20px 60px #0006;backdrop-filter:blur(14px)}
+.login{width:min(520px,100%);margin:9vh auto;text-align:center}.icon{font-size:55px}.muted{color:#94a3b8}
+button{padding:13px 18px;border:0;border-radius:12px;background:#2563eb;color:#fff;font-weight:800;cursor:pointer}
+.google{width:100%;background:#fff;color:#202124;font-size:15px;display:flex;justify-content:center;gap:10px;align-items:center}
+.google span{font-size:20px;font-weight:900}.danger{background:#dc2626}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+@media(max-width:700px){.grid{grid-template-columns:1fr}}input,select{width:100%;padding:13px;border-radius:11px;border:1px solid #475569;background:#0b1220;color:#fff}label{display:block;margin:10px 0 6px;font-size:13px;color:#aab4c5}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+@media(max-width:800px){.stats{grid-template-columns:repeat(2,1fr)}}.stat{background:#172033;border-radius:15px;padding:14px}.num{font-size:26px;font-weight:800}
+.row{padding:12px;border-bottom:1px solid #293548}table{width:100%;border-collapse:collapse}th,td{padding:9px;border-bottom:1px solid #293548;text-align:left;font-size:13px}
+.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:13px}.msg{padding:11px;border-radius:10px;background:#172033;margin-top:10px}.ok{color:#4ade80}.bad{color:#fb7185}.hidden{display:none!important}
+</style>
+</head>
+<body>
+<main class="wrap">
+
+<section id="loginBox" class="card login">
+<div class="icon">🏢</div>
+<h1>Multi-Company Attendance Admin</h1>
+<p class="muted">Admin Panel</p>
+<button id="googleLogin" class="google"><span>G</span> Continue with Google</button>
+<div id="loginMsg" class="msg hidden"></div>
+<p class="muted" style="font-size:12px;margin-top:18px">Any Google account can sign in on this version.</p>
+</section>
+
+<section id="app" class="hidden">
+<div class="top">
+<div><h1>Super Admin Dashboard</h1><div id="who" class="muted"></div></div>
+<button id="logout" class="danger">Logout</button>
+</div>
+
+<div class="stats">
+<div class="stat">Companies<div id="companiesCount" class="num">0</div></div>
+<div class="stat">Branches<div id="branchesCount" class="num">0</div></div>
+<div class="stat">Employees<div id="employeesCount" class="num">0</div></div>
+<div class="stat">Present<div id="presentCount" class="num">0</div></div>
+<div class="stat">Absent<div id="absentCount" class="num">0</div></div>
+</div>
+
+<div class="card">
+<h2>🏢 Add Company</h2>
+<div class="grid">
+<div><label>Company Name</label><input id="cName" placeholder="B.D. Bajar"></div>
+<div><label>Company ID</label><input id="cId" placeholder="BDB001"></div>
+<div><label>Company Logo URL (Storage not enabled)</label><input id="cLogo"></div>
+<div><label>Background URL (optional)</label><input id="cBg"></div>
+<div><label>Address</label><input id="cAddress"></div>
+<div><label>Contact</label><input id="cContact"></div>
+</div>
+<button id="addCompany" style="margin-top:14px">+ Add Company</button>
+<div id="companyMsg" class="msg hidden"></div>
+</div>
+
+<div class="card">
+<h2>🏬 Add Branch</h2>
+<div class="grid">
+<div><label>Company</label><select id="branchCompany"></select></div>
+<div><label>Branch Name</label><input id="bName" placeholder="Tiruppur Branch"></div>
+<div><label>Branch ID</label><input id="bId" placeholder="BDB-TIR"></div>
+<div><label>Address</label><input id="bAddress"></div>
+</div>
+<button id="addBranch" style="margin-top:14px">+ Add Branch</button>
+</div>
+
+<div class="card">
+<h2>👨‍💼 Add Employee</h2>
+<div class="grid">
+<div><label>Company</label><select id="eCompany"></select></div>
+<div><label>Branch</label><select id="eBranch"></select></div>
+<div><label>Employee Name</label><input id="eName"></div>
+<div><label>Employee ID</label><input id="eId"></div>
+<div><label>Username</label><input id="eUser"></div>
+<div><label>Password</label><input id="ePass" type="password"></div>
+<div><label>Employee Photo URL</label><input id="ePhoto"></div>
+<div><label>Designation</label><input id="eRole" placeholder="Sales Executive"></div>
+</div>
+<button id="addEmployee" style="margin-top:14px">Create Employee</button>
+<div id="empMsg" class="msg hidden"></div>
+</div>
+
+<div class="card"><h2>🏢 Companies</h2><div id="companyList"></div></div>
+<div class="card"><h2>👥 Employees</h2><div id="employeeList"></div></div>
+
+<div class="card">
+<h2>📅 Attendance</h2>
+<label>Date</label><input type="date" id="date">
+<div id="attendanceList"></div>
+</div>
+</section>
+</main>
+
+<script type="module">
+import {firebaseConfig,auth,db,loginEmail} from "./firebase-config.js";
+import {GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import {getAuth,createUserWithEmailAndPassword,signOut as secondarySignOut} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import {ref,get,set} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
+
+const $=id=>document.getElementById(id);
+let companies={},branches={},employees={};
+
+const esc=x=>String(x??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
+$("date").value=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Kolkata"}).format(new Date());
+$("date").onchange=loadAttendance;
+
+function message(text,type=""){
+ $("loginMsg").textContent=text;
+ $("loginMsg").className="msg "+type;
+ $("loginMsg").classList.remove("hidden");
+}
+
+$("googleLogin").onclick=async()=>{
+ try{
+   const provider=new GoogleAuthProvider();
+   provider.setCustomParameters({prompt:"select_account"});
+   await signInWithPopup(auth,provider);
+ }catch(e){
+   console.error(e);
+   message(e.message||"Google login failed.","bad");
+ }
+};
+
+onAuthStateChanged(auth,async user=>{
+ if(!user){
+   $("app").classList.add("hidden");
+   $("loginBox").classList.remove("hidden");
+   return;
+ }
+
+ try{
+   // Any Google account is allowed in this requested version.
+   // First login creates its local admin profile.
+   const userRef=ref(db,"users/"+user.uid);
+   const snap=await get(userRef);
+
+   if(!snap.exists()){
+     await set(userRef,{
+       uid:user.uid,
+       role:"superadmin",
+       username:user.email||user.uid,
+       email:user.email||"",
+       name:user.displayName||"Google Admin",
+       photoUrl:user.photoURL||"",
+       provider:"google",
+       createdAt:Date.now()
+     });
+   }
+
+   const profile=(await get(userRef)).val();
+   if(profile.role!=="superadmin"){
+     await signOut(auth);
+     throw Error("This Google account is not an admin account.");
+   }
+
+   $("loginBox").classList.add("hidden");
+   $("app").classList.remove("hidden");
+   $("who").textContent=(user.displayName||"Google Admin")+" • "+(user.email||"");
+   await refresh();
+ }catch(e){
+   console.error(e);
+   message(e.message||"Access denied.","bad");
+ }
+});
+
+async function refresh(){
+ const [c,b,u]=await Promise.all([
+   get(ref(db,"companies")),
+   get(ref(db,"branches")),
+   get(ref(db,"users"))
+ ]);
+ companies=c.exists()?c.val():{};
+ branches=b.exists()?b.val():{};
+ employees={};
+
+ if(u.exists()){
+   Object.values(u.val()).forEach(v=>{
+     if(v.role==="employee") employees[v.uid]=v;
+   });
+ }
+
+ $("companiesCount").textContent=Object.keys(companies).length;
+ $("branchesCount").textContent=Object.values(branches).reduce((n,x)=>n+Object.keys(x||{}).length,0);
+ $("employeesCount").textContent=Object.keys(employees).length;
+
+ fillCompanies();
+ renderLists();
+ await loadAttendance();
+}
+
+function fillCompanies(){
+ const options=Object.entries(companies)
+   .map(([id,c])=>`<option value="${esc(id)}">${esc(c.name)}</option>`).join("");
+
+ $("branchCompany").innerHTML=options||"<option value=''>No company</option>";
+ $("eCompany").innerHTML=options||"<option value=''>No company</option>";
+ updateBranches();
+}
+
+$("eCompany").onchange=updateBranches;
+
+function updateBranches(){
+ const cid=$("eCompany").value;
+ const b=branches[cid]||{};
+ $("eBranch").innerHTML=Object.entries(b)
+   .map(([id,v])=>`<option value="${esc(id)}">${esc(v.name)}</option>`).join("")
+   ||"<option value=''>No branch</option>";
+}
+
+$("addCompany").onclick=async()=>{
+ const name=$("cName").value.trim();
+ const id=($("cId").value.trim()||("COM"+Date.now())).toUpperCase();
+
+ if(!name){
+   $("companyMsg").textContent="Company name required.";
+   $("companyMsg").className="msg bad";
+   $("companyMsg").classList.remove("hidden");
+   return;
+ }
+ if(companies[id]){
+   $("companyMsg").textContent="Company ID already exists.";
+   $("companyMsg").className="msg bad";
+   $("companyMsg").classList.remove("hidden");
+   return;
+ }
+
+ await set(ref(db,"companies/"+id),{
+   companyId:id,
+   name,
+   logoUrl:$("cLogo").value.trim(),
+   backgroundUrl:$("cBg").value.trim(),
+   address:$("cAddress").value.trim(),
+   contact:$("cContact").value.trim(),
+   active:true,
+   createdAt:Date.now()
+ });
+
+ $("companyMsg").textContent="Company added successfully.";
+ $("companyMsg").className="msg ok";
+ $("companyMsg").classList.remove("hidden");
+ await refresh();
+};
+
+$("addBranch").onclick=async()=>{
+ const cid=$("branchCompany").value;
+ const name=$("bName").value.trim();
+ const id=($("bId").value.trim()||("BR"+Date.now())).toUpperCase();
+
+ if(!cid||!name)return alert("Select company and enter branch name.");
+
+ await set(ref(db,"branches/"+cid+"/"+id),{
+   branchId:id,
+   name,
+   address:$("bAddress").value.trim(),
+   active:true,
+   createdAt:Date.now()
+ });
+ await refresh();
+};
+
+$("addEmployee").onclick=async()=>{
+ const cid=$("eCompany").value;
+ const bid=$("eBranch").value;
+ const name=$("eName").value.trim();
+ const username=$("eUser").value.trim().toLowerCase().replace(/\s+/g,"");
+ const password=$("ePass").value;
+
+ if(!cid||!bid||!name||!username||password.length<6){
+   $("empMsg").textContent="Company, branch, name, username and 6+ character password are required.";
+   $("empMsg").className="msg bad";
+   $("empMsg").classList.remove("hidden");
+   return;
+ }
+
+ if(Object.values(employees).some(v=>v.username===username)){
+   $("empMsg").textContent="Username already exists.";
+   $("empMsg").className="msg bad";
+   $("empMsg").classList.remove("hidden");
+   return;
+ }
+
+ try{
+   // Secondary Firebase app prevents logging the current Google admin out.
+   const secondaryApp=initializeApp(firebaseConfig,"employee_"+Date.now());
+   const secondaryAuth=getAuth(secondaryApp);
+   const cred=await createUserWithEmailAndPassword(
+     secondaryAuth,loginEmail(username),password
+   );
+
+   const branch=branches[cid]?.[bid];
+
+   await set(ref(db,"users/"+cred.user.uid),{
+     uid:cred.user.uid,
+     role:"employee",
+     companyId:cid,
+     branchId:bid,
+     branchName:branch?.name||"",
+     name,
+     employeeId:$("eId").value.trim()||("EMP"+Date.now()),
+     username,
+     designation:$("eRole").value.trim(),
+     photoUrl:$("ePhoto").value.trim(),
+     active:true,
+     createdAt:Date.now()
+   });
+
+   await set(ref(db,"employeeIndex/"+cid+"/"+cred.user.uid),{
+     uid:cred.user.uid,
+     name,
+     username,
+     branchId:bid
+   });
+
+   await secondarySignOut(secondaryAuth);
+   $("empMsg").textContent="Employee created successfully.";
+   $("empMsg").className="msg ok";
+   $("empMsg").classList.remove("hidden");
+   await refresh();
+
+ }catch(e){
+   console.error(e);
+   $("empMsg").textContent=e.message||"Employee creation failed.";
+   $("empMsg").className="msg bad";
+   $("empMsg").classList.remove("hidden");
+ }
+};
+
+function renderLists(){
+ $("companyList").innerHTML=Object.entries(companies).map(([id,c])=>
+   `<div class="row"><b>${esc(c.name)}</b> <span class="muted">(${esc(id)})</span><br>
+   <span class="muted">${esc(c.address||"")}</span></div>`
+ ).join("")||"<div class='muted'>No companies yet.</div>";
+
+ $("employeeList").innerHTML=
+ "<table><tr><th>Name</th><th>ID</th><th>Company</th><th>Branch</th><th>Username</th></tr>"+
+ Object.values(employees).map(e=>
+ `<tr><td>${esc(e.name)}</td><td>${esc(e.employeeId)}</td>
+ <td>${esc(companies[e.companyId]?.name||"")}</td>
+ <td>${esc(e.branchName||"")}</td><td>${esc(e.username)}</td></tr>`
+ ).join("")+"</table>";
+}
+
+async function loadAttendance(){
+ const d=$("date").value;
+ let rows=[],present=0;
+
+ for(const e of Object.values(employees)){
+   const s=await get(ref(db,"attendance/"+e.uid+"/"+d));
+
+   if(s.exists()){
+     const v=s.val();
+     present++;
+     rows.push(`<tr>
+       <td>${esc(e.name)}</td>
+       <td>${esc(companies[e.companyId]?.name||"")}</td>
+       <td>${esc(e.branchName||"")}</td>
+       <td class="ok">${esc(v.status||"present")}</td>
+       <td>${esc(v.checkIn||"—")}</td>
+       <td>${esc(v.checkOut||"—")}</td>
+     </tr>`);
+   }else{
+     rows.push(`<tr>
+       <td>${esc(e.name)}</td>
+       <td>${esc(companies[e.companyId]?.name||"")}</td>
+       <td>${esc(e.branchName||"")}</td>
+       <td class="bad">ABSENT</td><td>—</td><td>—</td>
+     </tr>`);
+   }
+ }
+
+ $("presentCount").textContent=present;
+ $("absentCount").textContent=Math.max(0,Object.keys(employees).length-present);
+
+ $("attendanceList").innerHTML=
+ "<table><tr><th>Employee</th><th>Company</th><th>Branch</th><th>Status</th><th>In</th><th>Out</th></tr>"+
+ rows.join("")+"</table>";
+}
+
+$("logout").onclick=()=>signOut(auth);
+</script>
+</body>
+</html>
