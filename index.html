@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Employee Attendance</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Inter,Arial,sans-serif;background:#07111f;color:#eef6ff}
+.wrap{max-width:1100px;margin:auto;padding:18px}.card{background:#0d1b2a;border:1px solid #21364d;border-radius:22px;padding:20px;box-shadow:0 15px 45px #0006;margin:14px 0}
+h1,h2,h3{margin-top:0}input,button,select{width:100%;padding:13px;border-radius:12px;border:1px solid #2b4560;background:#091522;color:white;font-size:15px}
+button{cursor:pointer;background:#1677ff;border:0;font-weight:700;margin-top:9px}button.secondary{background:#26384b}button.danger{background:#d83a52}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}.shop{cursor:pointer;transition:.2s}.shop:hover{transform:translateY(-2px);border-color:#1677ff}
+.hidden{display:none!important}.muted{color:#9eb1c5}.err{color:#ff8798;background:#381621;padding:10px;border-radius:10px;margin-top:10px}
+.avatar{width:96px;height:96px;border-radius:50%;object-fit:cover;border:3px solid #1677ff;background:#15283c}
+.profile{display:flex;gap:15px;align-items:center;flex-wrap:wrap}.pill{display:inline-block;padding:6px 10px;background:#172d44;border-radius:999px;margin:3px}
+video{width:100%;max-height:360px;border-radius:16px;background:#000}.stat{padding:15px;background:#102338;border-radius:15px}
+table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px solid #23384c;text-align:left;font-size:13px}
+.top{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}.logo{width:52px;height:52px;border-radius:14px;object-fit:cover}
+</style></head><body><div class="wrap">
+<div class="top"><div><h1>Employee Attendance</h1><div class="muted">Company → Employee ID → Profile → Login → Selfie + GPS</div></div><button id="logout" class="danger hidden" style="width:auto">Logout</button></div>
+
+<section id="companyStep" class="card">
+<h2>1. Select Company / Shop</h2><input id="companySearch" placeholder="Search company / shop..."><div id="companies" class="grid" style="margin-top:14px"></div><div id="companyErr"></div>
+</section>
+
+<section id="loginStep" class="card hidden">
+<h2>2. Employee Login</h2><div id="selectedCompany"></div>
+<label>Employee ID</label><input id="employeeId" placeholder="Enter your Employee ID">
+<div id="employeePreview" class="card hidden"></div>
+<label>Username</label><input id="username" placeholder="Username">
+<label>Password</label><input id="password" type="password" placeholder="Password">
+<button id="loginBtn">Login & Open Dashboard</button><button id="backBtn" class="secondary">Back</button><div id="loginErr"></div>
+</section>
+
+<section id="dashboard" class="hidden">
+<div class="card"><div class="profile"><img id="empPhoto" class="avatar"><div><h2 id="empName"></h2><div id="empMeta"></div></div></div></div>
+<div class="grid"><div class="stat"><b>Current Time</b><div id="clock"></div></div><div class="stat"><b>GPS</b><div id="gps">Not checked</div></div><div class="stat"><b>Today</b><div id="todayStatus">Loading...</div></div></div>
+<div class="card"><h2>Camera Selfie Attendance</h2><video id="video" autoplay playsinline muted></video><div class="grid"><button id="startCam">Start Camera</button><button id="capture" disabled>Capture Selfie</button></div><canvas id="canvas" class="hidden"></canvas><img id="selfiePreview" class="avatar hidden" style="margin-top:12px"><div class="grid"><button id="checkIn">Check In</button><button id="checkOut" class="secondary">Check Out</button></div><div id="attErr"></div></div>
+<div class="card"><h2>Attendance History</h2><div style="overflow:auto"><table><thead><tr><th>Date</th><th>In</th><th>Out</th><th>Hours</th><th>Location</th></tr></thead><tbody id="history"></tbody></table></div></div>
+</section>
+</div>
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import {getDatabase,ref,get,set,update,push} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
+import {getAuth,signInWithEmailAndPassword,onAuthStateChanged,setPersistence,browserLocalPersistence,signOut} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+const firebaseConfig = {
+  apiKey: "AIzaSyC0A0C8ZAlYUZQM4UYs49xBhyMHwArJDLpA",
+  authDomain: "website-a091e.firebaseapp.com",
+  databaseURL: "https://website-a091e-default-rtdb.firebaseio.com",
+  projectId: "website-a091e",
+  storageBucket: "website-a091e.firebasestorage.app",
+  messagingSenderId: "204226900375",
+  appId: "1:204226900375:web:d635dc3888d304ec4b14d2",
+  measurementId: "G-FWWR65M866"
+};
+const app=initializeApp(firebaseConfig), db=getDatabase(app), auth=getAuth(app);
+setPersistence(auth,browserLocalPersistence);
+const $=id=>document.getElementById(id);
+let companies=[], branches=[], selected=null, profile=null, stream=null, selfie="", coords=null;
+
+function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function photo(p){return p||"data:image/svg+xml;charset=UTF-8,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect width="100%" height="100%" fill="#172d44"/><text x="50%" y="55%" text-anchor="middle" fill="white" font-size="70">👤</text></svg>')}
+async function loadCompanies(){
+ try{const [c,b]=await Promise.all([get(ref(db,"companies")),get(ref(db,"branches"))]);companies=[];branches=[];
+ if(c.exists()) Object.entries(c.val()).forEach(([id,v])=>companies.push({id,...v}));
+ if(b.exists()) Object.entries(b.val()).forEach(([id,v])=>branches.push({id,...v}));
+ renderCompanies(companies);
+ }catch(e){$("companyErr").innerHTML='<div class="err">Company load error: '+esc(e.message)+'</div>'}
+}
+function renderCompanies(list){$("companies").innerHTML=list.length?list.map(c=>`<div class="card shop" data-id="${c.id}"><div class="profile"><img class="logo" src="${esc(photo(c.logo||c.photo))}"><div><h3>${esc(c.name||c.companyName||c.shopName||c.id)}</h3><div class="muted">${esc(c.address||"Company")}</div></div></div></div>`).join(""):'<div class="muted">No companies found.</div>';
+document.querySelectorAll(".shop").forEach(x=>x.onclick=()=>chooseCompany(x.dataset.id));}
+$("companySearch").oninput=e=>renderCompanies(companies.filter(c=>String(c.name||c.companyName||c.shopName||c.id).toLowerCase().includes(e.target.value.toLowerCase())));
+function chooseCompany(id){selected=companies.find(c=>c.id===id);$("companyStep").classList.add("hidden");$("loginStep").classList.remove("hidden");$("selectedCompany").innerHTML=`<div class="profile"><img class="logo" src="${esc(photo(selected.logo||selected.photo))}"><div><b>${esc(selected.name||selected.companyName||selected.shopName)}</b><div class="muted">${esc(selected.address||"")}</div></div></div>`;}
+$("backBtn").onclick=()=>{$("loginStep").classList.add("hidden");$("companyStep").classList.remove("hidden")};
+async function findEmployee(){
+ const id=$("employeeId").value.trim(); if(!id||!selected)return;
+ const snap=await get(ref(db,"employeeIndex/"+id));
+ let p=snap.exists()?snap.val():null;
+ if(!p){const u=await get(ref(db,"users")); if(u.exists()){for(const [uid,v] of Object.entries(u.val())) if(String(v.employeeId||"").toLowerCase()===id.toLowerCase()){p={uid,...v};break}}}
+ if(p && String(p.companyId)===String(selected.id)){profile={...p,uid:p.uid||p.id};$("employeePreview").classList.remove("hidden");$("employeePreview").innerHTML=`<div class="profile"><img class="avatar" src="${esc(photo(p.photo||p.photoUrl))}"><div><h3>${esc(p.name||p.fullName||"Employee")}</h3><div class="pill">ID: ${esc(p.employeeId||id)}</div><div class="pill">${esc(p.designation||"Employee")}</div><div class="pill">${esc(branchName(p.branchId))}</div></div></div>`;}
+ else{$("employeePreview").classList.remove("hidden");$("employeePreview").innerHTML='<div class="err">Employee ID not found in this company.</div>';profile=null;}
+}
+function branchName(id){const b=branches.find(x=>x.id===id);return b?.name||b?.branchName||id||"Main Branch"}
+$("employeeId").onblur=findEmployee;
+$("employeeId").oninput=()=>{if($("employeeId").value.trim().length>=2)findEmployee().catch(()=>{})};
+$("loginBtn").onclick=async()=>{$("loginErr").innerHTML="";try{if(!profile)await findEmployee();if(!profile)throw Error("Enter a valid Employee ID.");
+let un=$("username").value.trim().toLowerCase(); if(!un)throw Error("Username required.");
+let email=un+"@bdbajar.local";await signInWithEmailAndPassword(auth,email,$("password").value);}
+catch(e){$("loginErr").innerHTML='<div class="err">'+esc(e.message)+'</div>'}};
+onAuthStateChanged(auth,async user=>{if(!user)return;try{const s=await get(ref(db,"users/"+user.uid));if(!s.exists())throw Error("Employee profile not found.");profile={uid:user.uid,...s.val()};if(String(profile.companyId)!==String(selected?.id||profile.companyId)){const c=await get(ref(db,"companies/"+profile.companyId));selected=c.exists()?{id:profile.companyId,...c.val()}:selected;}
+ openDashboard();}catch(e){$("loginErr").innerHTML='<div class="err">'+esc(e.message)+'</div>'}});
+function openDashboard(){$("companyStep").classList.add("hidden");$("loginStep").classList.add("hidden");$("dashboard").classList.remove("hidden");$("logout").classList.remove("hidden");$("empName").textContent=profile.name||profile.fullName||"Employee";$("empPhoto").src=photo(profile.photo||profile.photoUrl);$("empMeta").innerHTML=`<span class="pill">ID: ${esc(profile.employeeId||"")}</span><span class="pill">${esc(profile.designation||"Employee")}</span><span class="pill">${esc(branchName(profile.branchId))}</span><span class="pill">${esc(selected?.name||selected?.companyName||selected?.shopName||"Company")}</span>`;loadToday();loadHistory();}
+setInterval(()=>$("clock").textContent=new Date().toLocaleString(),1000);
+$("logout").onclick=()=>signOut(auth).then(()=>location.reload());
+$("startCam").onclick=async()=>{try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"},audio:false});$("video").srcObject=stream;$("capture").disabled=false;}catch(e){$("attErr").innerHTML='<div class="err">Camera permission denied/unavailable. '+esc(e.message)+'</div>'}};
+$("capture").onclick=()=>{const v=$("video"),c=$("canvas");c.width=v.videoWidth||640;c.height=v.videoHeight||480;c.getContext("2d").drawImage(v,0,0,c.width,c.height);selfie=c.toDataURL("image/jpeg",.55);$("selfiePreview").src=selfie;$("selfiePreview").classList.remove("hidden");};
+async function gps(){return new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(p=>{coords={lat:p.coords.latitude,lng:p.coords.longitude,accuracy:p.coords.accuracy};$("gps").textContent=coords.lat.toFixed(6)+", "+coords.lng.toFixed(6)+" ±"+Math.round(coords.accuracy)+"m";resolve(coords)},reject,{enableHighAccuracy:true,timeout:15000,maximumAge:0}) )}
+async function saveAttendance(type){$("attErr").innerHTML="";try{if(!selfie)throw Error("First capture live selfie.");const g=await gps();if(g.accuracy>150)throw Error("GPS accuracy is too low. Move outside/near a window and try again.");const now=new Date(),date=now.toISOString().slice(0,10),time=now.toLocaleTimeString();const r=ref(db,`attendance/${profile.uid}/${date}`),s=await get(r),old=s.exists()?s.val():{};const data={...old,employeeId:profile.employeeId||"",name:profile.name||"",companyId:profile.companyId||selected?.id,branchId:profile.branchId||"",updatedAt:Date.now(),lat:g.lat,lng:g.lng,accuracy:g.accuracy};data[type==="in"?"checkIn":"checkOut"]=time;data[type==="in"?"checkInSelfie":"checkOutSelfie"]=selfie;if(type==="out"&&data.checkIn){const a=new Date(date+"T"+data.checkIn),b=new Date(date+"T"+time);data.workingMinutes=Math.max(0,Math.round((b-a)/60000));}await set(r,data);$("todayStatus").textContent=type==="in"?"Checked In":"Checked Out";await loadHistory();alert(type==="in"?"Check-in successful":"Check-out successful");}catch(e){$("attErr").innerHTML='<div class="err">'+esc(e.message)+'</div>'}}
+$("checkIn").onclick=()=>saveAttendance("in");$("checkOut").onclick=()=>saveAttendance("out");
+async function loadToday(){const d=new Date().toISOString().slice(0,10),s=await get(ref(db,`attendance/${profile.uid}/${d}`));if(s.exists()){$("todayStatus").textContent=s.val().checkOut?"Checked Out":s.val().checkIn?"Checked In":"Not marked";}else $("todayStatus").textContent="Not marked";}
+async function loadHistory(){const s=await get(ref(db,`attendance/${profile.uid}`));let a=[];if(s.exists())Object.entries(s.val()).forEach(([date,v])=>a.push({date,...v}));a.sort((x,y)=>y.date.localeCompare(x.date));$("history").innerHTML=a.map(v=>`<tr><td>${esc(v.date)}</td><td>${esc(v.checkIn||"-")}</td><td>${esc(v.checkOut||"-")}</td><td>${v.workingMinutes?Math.floor(v.workingMinutes/60)+"h "+(v.workingMinutes%60)+"m":"-"}</td><td>${v.lat?esc(v.lat.toFixed(5)+", "+v.lng.toFixed(5)):"-"}</td></tr>`).join("")||'<tr><td colspan="5">No attendance yet.</td></tr>';}
+loadCompanies();
+</script></body></html>
