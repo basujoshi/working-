@@ -1,0 +1,26 @@
+{
+  "rules": {
+    "companies": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+    "branches": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+    "employeeIndex": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+    "users": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "attendance": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    }
+  }
+}
