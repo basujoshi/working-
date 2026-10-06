@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#07111f">
+<title>Attendance Portal</title>
+<style>
+:root{--bg:#07111f;--panel:rgba(15,27,45,.82);--panel2:rgba(255,255,255,.07);--line:rgba(255,255,255,.12);--text:#f8fafc;--muted:#9aa8bb;--blue:#4f8cff;--green:#19c37d;--orange:#f6a623;--red:#ff5d6c}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,Segoe UI,Arial,sans-serif;background:radial-gradient(circle at 15% 10%,#17345b 0,#07111f 38%,#030912 100%);color:var(--text)}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;background:linear-gradient(120deg,transparent 35%,rgba(79,140,255,.06),transparent 65%);animation:shine 8s linear infinite}
+@keyframes shine{0%{transform:translateX(-30%)}100%{transform:translateX(30%)}}
+button,input{font:inherit}.hidden{display:none!important}.page{min-height:100vh;padding:26px 16px}.shell{width:min(1050px,100%);margin:auto}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:28px}
+.logo-title{display:flex;align-items:center;gap:12px}.brand-icon{width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,#4f8cff,#7c5cff);display:grid;place-items:center;font-size:23px;box-shadow:0 10px 35px #4f8cff40}.brand{font-size:19px;font-weight:900}.sub{font-size:11px;color:var(--muted);margin-top:3px}
+.secure{font-size:12px;color:#a9b7c9;border:1px solid var(--line);padding:8px 11px;border-radius:99px;background:#ffffff05}
+.hero{display:grid;grid-template-columns:1.05fr .95fr;gap:25px;align-items:stretch}
+.intro{padding:35px 10px}.eyebrow{display:inline-flex;padding:7px 11px;border:1px solid #4f8cff55;border-radius:99px;background:#4f8cff12;color:#8fb5ff;font-size:12px;font-weight:800}.intro h1{font-size:clamp(35px,6vw,64px);line-height:1.02;margin:17px 0 15px;letter-spacing:-2px}.intro h1 span{color:#76a7ff}.intro p{max-width:550px;color:var(--muted);line-height:1.7}
+.features{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}.chip{border:1px solid var(--line);padding:8px 10px;border-radius:10px;color:#c8d3e2;font-size:12px;background:#ffffff04}
+.panel{background:linear-gradient(145deg,rgba(19,34,56,.9),rgba(8,17,30,.88));border:1px solid var(--line);border-radius:25px;box-shadow:0 30px 80px #0007;backdrop-filter:blur(18px);padding:25px}
+.panel h2{margin:0;font-size:24px}.muted{color:var(--muted)}.small{font-size:12px}
+.search{margin-top:18px;position:relative}.search input{width:100%;height:54px;border-radius:15px;border:1px solid var(--line);background:#050d18;color:#fff;padding:0 17px;outline:none}.search input:focus{border-color:#4f8cff;box-shadow:0 0 0 4px #4f8cff18}
+.shop-list{margin-top:10px;max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:15px;background:#07111e}
+.shop{width:100%;border:0;border-bottom:1px solid #ffffff0c;background:transparent;color:#fff;display:flex;align-items:center;gap:13px;text-align:left;padding:14px;cursor:pointer}.shop:hover{background:#4f8cff0d}.shop:last-child{border-bottom:0}
+.shop-logo{width:50px;height:50px;border-radius:14px;object-fit:cover;background:#172338;flex:0 0 50px}.shop-name{font-weight:900}.shop-info{font-size:12px;color:var(--muted);margin-top:4px}.arrow{margin-left:auto;color:#8092aa;font-size:20px}
+.selected{margin-top:14px;padding:13px;border:1px solid #4f8cff55;background:#4f8cff0d;border-radius:15px;display:flex;gap:11px;align-items:center}.selected img{width:43px;height:43px;border-radius:11px;object-fit:cover}.selected b{display:block}.selected span{font-size:11px;color:var(--muted)}
+.login-box{margin-top:15px}.field{margin-top:11px}.field label{display:block;font-size:12px;font-weight:800;color:#b7c4d5;margin-bottom:6px}.field input{width:100%;height:49px;border-radius:13px;border:1px solid var(--line);background:#050d18;color:#fff;padding:0 14px;outline:none}.field input:focus{border-color:#4f8cff}
+.btn{width:100%;height:50px;border:0;border-radius:13px;margin-top:12px;font-weight:900;cursor:pointer}.primary{background:linear-gradient(135deg,#4f8cff,#6b6cff);color:#fff;box-shadow:0 12px 30px #4f8cff2c}.back{background:#ffffff08;color:#c5d0de;border:1px solid var(--line)}.btn:disabled{opacity:.55}
+.msg{margin-top:11px;padding:11px 12px;border-radius:11px;font-size:12px;line-height:1.5}.error{background:#ff5d6c12;border:1px solid #ff5d6c33;color:#ff9ca6}.ok{background:#19c37d12;border:1px solid #19c37d33;color:#70e3b1}.info{background:#4f8cff12;border:1px solid #4f8cff33;color:#9fc0ff}
+.dashboard{display:grid;grid-template-columns:1fr 1fr;gap:15px}.full{grid-column:1/-1}.profile{display:flex;align-items:center;gap:14px}.profile-img{width:70px;height:70px;border-radius:20px;object-fit:cover;background:#172338}.profile h2{margin:0 0 4px}.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:15px}.info{padding:11px;background:#ffffff05;border:1px solid var(--line);border-radius:12px}.info .k{font-size:10px;color:var(--muted)}.info .v{font-weight:800;font-size:13px;margin-top:4px;color:#e7edf6}
+.clock{text-align:center;font-size:38px;font-weight:900;letter-spacing:1px}.date{text-align:center;color:var(--muted);font-size:12px;margin-top:3px}
+.att-head{display:flex;justify-content:space-between;align-items:center;gap:10px}.status{padding:7px 10px;border-radius:99px;font-size:11px;font-weight:900}.ready{background:#ffffff0b;color:#aab7c7}.present{background:#19c37d1a;color:#5ee5a6}.done{background:#4f8cff1a;color:#9fc0ff}
+.camera{margin-top:15px;border-radius:18px;overflow:hidden;background:#02060c;border:1px solid var(--line);position:relative}.camera video,.camera img{width:100%;display:block;max-height:420px;object-fit:cover}.camera video{transform:scaleX(-1)}.placeholder{height:250px;display:grid;place-items:center;color:#66758a;font-size:13px}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:9px}.action{height:48px;border:0;border-radius:12px;font-weight:900}.cam{background:#ffffff0a;color:#dce5f0;border:1px solid var(--line)}.in{background:#19c37d;color:#04130d}.out{background:#f6a623;color:#1a1002}
+.history{overflow:auto;margin-top:10px}.history table{border-collapse:collapse;width:100%;min-width:560px}.history th,.history td{text-align:left;padding:10px;border-bottom:1px solid #ffffff0b;font-size:12px}.history th{color:#9aa8bb;font-size:11px}.logout{background:#ff5d6c12;color:#ff9ca6;border:1px solid #ff5d6c33;border-radius:10px;padding:8px 11px;font-weight:800;cursor:pointer}
+@media(max-width:800px){.hero{grid-template-columns:1fr}.intro{padding:10px 3px}.dashboard{grid-template-columns:1fr}.full{grid-column:auto}}
+@media(max-width:520px){.page{padding:15px 10px}.topbar{margin-bottom:18px}.secure{display:none}.panel{padding:18px;border-radius:20px}.intro h1{font-size:42px}.actions{grid-template-columns:1fr}.info-grid{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div class="page">
+<div class="shell">
+<header class="topbar">
+  <div class="logo-title">
+    <div class="brand-icon">✓</div>
+    <div><div class="brand">Attendance Portal</div><div class="sub">Multi-Company • Secure Employee Login</div></div>
+  </div>
+  <div id="topRight" class="secure">● Secure Firebase Login</div>
+</header>
+
+<section id="loginScreen" class="hero">
+  <div class="intro">
+    <div class="eyebrow">ADVANCED EMPLOYEE PORTAL</div>
+    <h1>Work smarter.<br><span>Attendance simpler.</span></h1>
+    <p>पहले अपनी Shop / Company चुनें। Shop पर click करने के बाद उसी company के employee username और password से login करें। Login के बाद आपका attendance dashboard खुलेगा।</p>
+    <div class="features">
+      <span class="chip">✓ Shop Selection</span><span class="chip">✓ Employee Login</span><span class="chip">✓ GPS Attendance</span><span class="chip">✓ Selfie</span><span class="chip">✓ History</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div id="shopStep">
+      <h2>Select Your Shop</h2>
+      <p class="muted small">Search करके अपनी company/shop पर click करें.</p>
+      <div class="search"><input id="shopSearch" placeholder="🔎  Search shop / company name..." autocomplete="off"></div>
+      <div id="shopList" class="shop-list"><div class="shop" style="cursor:default"><div class="muted small">Loading shops...</div></div></div>
+      <div id="shopMsg"></div>
+    </div>
+
+    <div id="loginStep" class="hidden">
+      <button id="changeShop" class="btn back" style="margin-top:0">← Change Shop</button>
+      <div id="selectedShop" class="selected"></div>
+      <div class="login-box">
+        <h2 style="margin-top:18px">Employee Login</h2>
+        <p class="muted small">Selected shop के employee username और password डालें.</p>
+        <div class="field"><label>USERNAME</label><input id="username" autocomplete="username" placeholder="Enter username"></div>
+        <div class="field"><label>PASSWORD</label><input id="password" type="password" autocomplete="current-password" placeholder="Enter password"></div>
+        <button id="loginBtn" class="btn primary">Login & Open Dashboard</button>
+        <div id="loginMsg"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="dashboard" class="dashboard hidden">
+  <div class="panel">
+    <div class="profile">
+      <img id="empPhoto" class="profile-img" alt="">
+      <div><h2 id="empName">Employee</h2><div id="empDesignation" class="muted small"></div></div>
+      <button id="logout" class="logout" style="margin-left:auto">Logout</button>
+    </div>
+    <div class="info-grid">
+      <div class="info"><div class="k">SHOP / COMPANY</div><div id="dCompany" class="v">—</div></div>
+      <div class="info"><div class="k">BRANCH</div><div id="dBranch" class="v">—</div></div>
+      <div class="info"><div class="k">EMPLOYEE ID</div><div id="dId" class="v">—</div></div>
+      <div class="info"><div class="k">USERNAME</div><div id="dUser" class="v">—</div></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="clock" id="clock">00:00:00</div>
+    <div class="date" id="date"></div>
+  </div>
+
+  <div class="panel full">
+    <div class="att-head"><h2 style="margin:0">Today's Attendance</h2><span id="status" class="status ready">Not checked in</span></div>
+    <div class="camera">
+      <video id="video" autoplay playsinline muted class="hidden"></video>
+      <img id="preview" class="hidden" alt="Selfie">
+      <div id="cameraPlaceholder" class="placeholder">Camera is off</div>
+    </div>
+    <div class="actions">
+      <button id="cameraBtn" class="action cam">📷 Start Camera</button>
+      <button id="captureBtn" class="action cam" disabled>📸 Capture Selfie</button>
+    </div>
+    <div class="actions">
+      <button id="checkIn" class="action in">✓ CHECK IN</button>
+      <button id="checkOut" class="action out">↪ CHECK OUT</button>
+    </div>
+    <input id="photoInput" type="file" accept="image/*" capture="user" class="hidden">
+    <div id="attMsg"></div>
+  </div>
+
+  <div class="panel full">
+    <h2>Attendance History</h2>
+    <div id="history" class="history"><div class="muted small">Loading...</div></div>
+  </div>
+</section>
+</div>
+</div>
+
+<script type="module">
+import{initializeApp,getApps,getApp}from"https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import{getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged,setPersistence,browserLocalPersistence}from"https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import{getDatabase,ref,get,set,update}from"https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
+
+const firebaseConfig={
+ apiKey:"AIzaSyA0C8ZAlYUZQM4UYs49xBhyMHwArJDLJpA",
+ authDomain:"website-a091e.firebaseapp.com",
+ databaseURL:"https://website-a091e-default-rtdb.firebaseio.com",
+ projectId:"website-a091e",
+ storageBucket:"website-a091e.firebasestorage.app",
+ messagingSenderId:"204226900375",
+ appId:"1:204226900375:web:d635dc3888d304ec4b14d2",
+ measurementId:"G-FWWR65M866"
+};
+const app=getApps().length?getApp():initializeApp(firebaseConfig),auth=getAuth(app),db=getDatabase(app);
+await setPersistence(auth,browserLocalPersistence);
+
+const $=id=>document.getElementById(id);
+const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
+const emailFor=u=>String(u||"").trim().toLowerCase().replace(/[^a-z0-9._-]/g,"")+"@bdbajar.local";
+const today=()=>new Date().toISOString().slice(0,10);
+const time=()=>new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+let companies={},branches={},selected="",profile=null,stream=null,selfie="",todayData={};
+
+function message(id,t,type="error"){$(id).innerHTML=`<div class="msg ${type}">${esc(t)}</div>`}
+function renderShops(){
+ const q=$("shopSearch").value.trim().toLowerCase();
+ const rows=Object.entries(companies).filter(([id,c])=>!q||String(c.name||"").toLowerCase().includes(q)||id.toLowerCase().includes(q));
+ $("shopList").innerHTML=rows.length?rows.map(([id,c])=>`<button class="shop" data-id="${esc(id)}"><img class="shop-logo" src="${esc(c.logo||"")}" onerror="this.style.visibility='hidden'"><span><div class="shop-name">${esc(c.name||id)}</div><div class="shop-info">${esc(c.address||"")}${c.phone?" • "+esc(c.phone):""}</div></span><span class="arrow">›</span></button>`).join(""):`<div class="shop" style="cursor:default"><div class="muted small">No shop found.</div></div>`;
+ document.querySelectorAll(".shop[data-id]").forEach(x=>x.onclick=()=>chooseShop(x.dataset.id));
+}
+function chooseShop(id){
+ selected=id;const c=companies[id]||{};
+ $("selectedShop").innerHTML=`<img src="${esc(c.logo||"")}" onerror="this.style.visibility='hidden'"><div><b>${esc(c.name||id)}</b><span>${esc(c.address||"Shop selected")}</span></div>`;
+ $("shopStep").classList.add("hidden");$("loginStep").classList.remove("hidden");$("username").focus();
+}
+$("shopSearch").oninput=renderShops;
+$("changeShop").onclick=()=>{$("loginStep").classList.add("hidden");$("shopStep").classList.remove("hidden");$("password").value="";$("loginMsg").innerHTML=""};
+
+async function loadData(){
+ try{companies=(await get(ref(db,"companies"))).val()||{};branches=(await get(ref(db,"branches"))).val()||{};renderShops()}
+ catch(e){message("shopMsg","Shop list load नहीं हुआ: "+e.message)}
+}
+function authError(e){
+ const m={"auth/invalid-credential":"Username या password गलत है.","auth/invalid-email":"Username गलत है.","auth/user-disabled":"यह employee account disabled है.","auth/too-many-requests":"बहुत ज्यादा attempts हुए हैं. थोड़ी देर बाद try करें.","auth/network-request-failed":"Internet connection problem."};
+ return m[e.code]||e.message||String(e)
+}
+$("loginBtn").onclick=async()=>{
+ const u=$("username").value.trim(),p=$("password").value;
+ if(!selected){message("loginMsg","पहले Shop select करें.");return}
+ if(!u||!p){message("loginMsg","Username और password दोनों भरें.");return}
+ $("loginBtn").disabled=true;$("loginBtn").textContent="Signing in...";
+ try{
+  const cred=await signInWithEmailAndPassword(auth,emailFor(u),p);
+  const snap=await get(ref(db,"users/"+cred.user.uid));
+  if(!snap.exists())throw new Error("Employee profile database में नहीं मिला.");
+  const x=snap.val();
+  if(x.role!=="employee")throw new Error("यह employee account नहीं है.");
+  if(x.companyId!==selected){await signOut(auth);throw new Error("यह employee selected shop से belong नहीं करता.");}
+  profile=x;openDashboard();await loadAttendance();
+ }catch(e){message("loginMsg",authError(e))}
+ finally{$("loginBtn").disabled=false;$("loginBtn").textContent="Login & Open Dashboard"}
+};
+
+onAuthStateChanged(auth,async user=>{
+ if(!user)return;
+ try{
+  const s=await get(ref(db,"users/"+user.uid)),x=s.val();
+  if(!x||x.role!=="employee"){await signOut(auth);return}
+  profile=x;selected=x.companyId||selected;openDashboard();await loadAttendance();
+ }catch(e){message("loginMsg","Saved login restore नहीं हुआ: "+e.message)}
+});
+
+function openDashboard(){
+ $("loginScreen").classList.add("hidden");$("dashboard").classList.remove("hidden");$("topRight").innerHTML=`<button class="logout" id="topLogout">Logout</button>`;
+ $("empName").textContent=profile.name||"Employee";$("empDesignation").textContent=profile.designation||"Employee";
+ $("dCompany").textContent=companies[profile.companyId]?.name||profile.companyId||"—";
+ $("dBranch").textContent=branches[profile.companyId]?.[profile.branchId]?.name||profile.branchId||"—";
+ $("dId").textContent=profile.employeeId||"—";$("dUser").textContent=profile.username||"—";
+ $("empPhoto").src=profile.photoData||profile.photoUrl||"";
+ $("topLogout").onclick=logout;
+}
+async function logout(){stopCamera();await signOut(auth);location.reload()}
+
+setInterval(()=>{$("clock").textContent=time();$("date").textContent=new Date().toLocaleDateString([],{weekday:"long",year:"numeric",month:"long",day:"numeric"})},500);
+
+async function loadAttendance(){
+ if(!profile)return;
+ try{todayData=(await get(ref(db,`attendance/${profile.uid}/${today()}`))).val()||{};renderStatus();loadHistory()}
+ catch(e){message("attMsg","Attendance load error: "+e.message)}
+}
+function renderStatus(){
+ const s=$("status");
+ if(todayData.checkOut){s.textContent="Checked Out";s.className="status done"}
+ else if(todayData.checkIn){s.textContent="Checked In";s.className="status present"}
+ else{s.textContent="Not Checked In";s.className="status ready"}
+ $("checkIn").disabled=!!todayData.checkIn;$("checkOut").disabled=!todayData.checkIn||!!todayData.checkOut;
+}
+function location(){
+ return new Promise((res,rej)=>navigator.geolocation?navigator.geolocation.getCurrentPosition(p=>res({lat:+p.coords.latitude.toFixed(6),lng:+p.coords.longitude.toFixed(6),accuracy:Math.round(p.coords.accuracy||0)}),()=>rej(new Error("GPS permission required.")),{enableHighAccuracy:true,timeout:15000,maximumAge:0}):rej(new Error("GPS not supported.")))
+}
+async function save(type){
+ if(type==="in"&&todayData.checkIn)return;if(type==="out"&&(!todayData.checkIn||todayData.checkOut))return;
+ try{
+  message("attMsg","GPS location लिया जा रहा है...","info");const l=await location(),now=Date.now();
+  const point={time:time(),timestamp:now,lat:l.lat,lng:l.lng,accuracy:l.accuracy,selfie:selfie};
+  const r=ref(db,`attendance/${profile.uid}/${today()}`);
+  if(type==="in"){todayData={uid:profile.uid,companyId:profile.companyId,branchId:profile.branchId,date:today(),status:"Present",checkIn:point};await set(r,todayData);message("attMsg","✓ Check-in successful.","ok")}
+  else{const mins=Math.round((now-(todayData.checkIn?.timestamp||now))/60000),work=Math.floor(mins/60)+"h "+mins%60+"m";todayData={...todayData,checkOut:point,workingHours:work};await update(r,{checkOut:point,workingHours:work});message("attMsg","✓ Check-out successful. Working time: "+work,"ok")}
+  selfie="";renderStatus();loadHistory();
+ }catch(e){message("attMsg",e.message)}
+}
+$("checkIn").onclick=()=>save("in");$("checkOut").onclick=()=>save("out");
+
+async function loadHistory(){
+ try{const d=(await get(ref(db,"attendance/"+profile.uid))).val()||{},rows=Object.entries(d).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,31);$("history").innerHTML=rows.length?`<table><tr><th>DATE</th><th>STATUS</th><th>CHECK IN</th><th>CHECK OUT</th><th>WORKING</th></tr>${rows.map(([d,a])=>`<tr><td>${esc(d)}</td><td>${esc(a.status||"—")}</td><td>${esc(a.checkIn?.time||"—")}</td><td>${esc(a.checkOut?.time||"—")}</td><td>${esc(a.workingHours||"—")}</td></tr>`).join("")}</table>`:"<div class='muted small'>No attendance yet.</div>"}catch(e){$("history").innerHTML=`<div class="msg error">${esc(e.message)}</div>`}
+}
+async function camera(){
+ try{stopCamera();stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user",width:{ideal:720},height:{ideal:720}},audio:false});$("video").srcObject=stream;$("video").classList.remove("hidden");$("cameraPlaceholder").classList.add("hidden");$("captureBtn").disabled=false;$("cameraBtn").textContent="📷 Camera On"}catch(e){$("photoInput").click()}
+}
+function stopCamera(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}if($("video"))$("video").srcObject=null}
+$("cameraBtn").onclick=camera;
+$("captureBtn").onclick=()=>{
+ const v=$("video"),c=document.createElement("canvas"),max=700,s=Math.min(1,max/v.videoWidth);c.width=v.videoWidth*s;c.height=v.videoHeight*s;const x=c.getContext("2d");x.translate(c.width,0);x.scale(-1,1);x.drawImage(v,0,0,c.width,c.height);selfie=c.toDataURL("image/jpeg",.62);$("preview").src=selfie;$("preview").classList.remove("hidden");$("cameraPlaceholder").classList.add("hidden");message("attMsg","Selfie captured.","ok")
+};
+$("photoInput").onchange=e=>{const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>{const i=new Image();i.onload=()=>{const c=document.createElement("canvas"),m=700,s=Math.min(1,m/i.width);c.width=i.width*s;c.height=i.height*s;c.getContext("2d").drawImage(i,0,0,c.width,c.height);selfie=c.toDataURL("image/jpeg",.62);$("preview").src=selfie;$("preview").classList.remove("hidden");$("cameraPlaceholder").classList.add("hidden");message("attMsg","Photo selected.","ok")};i.src=r.result};r.readAsDataURL(f)};
+await loadData();
+</script>
+</body>
+</html>
