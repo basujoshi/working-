@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Multi-Company Attendance — Admin</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;background:#f5f7fb;color:#172033}
+button,input,select{font:inherit}button{cursor:pointer;border:0}.hidden{display:none!important}
+.top{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid #e7eaf0;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{font-weight:800;font-size:19px}.userbox{display:flex;align-items:center;gap:10px}.avatar{width:36px;height:36px;border-radius:50%;object-fit:cover;background:#e9edf5}
+.btn{padding:10px 14px;border-radius:10px;background:#edf1f7;color:#172033;font-weight:700}.btn.primary{background:#2563eb;color:#fff}.btn.danger{background:#fee2e2;color:#991b1b}.btn.google{background:#fff;border:1px solid #d9dee8;width:100%;display:flex;align-items:center;justify-content:center;gap:10px;padding:13px}
+.wrap{max-width:1200px;margin:0 auto;padding:22px 16px}.login{max-width:460px;margin:8vh auto;background:#fff;border:1px solid #e6eaf0;border-radius:20px;padding:28px;box-shadow:0 14px 45px #14213d12}.login h1{margin:0 0 8px}.muted{color:#667085}.error{margin-top:12px;padding:11px 12px;border-radius:10px;background:#fff1f2;color:#b42318;font-size:14px;line-height:1.45}.ok{margin-top:12px;padding:11px 12px;border-radius:10px;background:#ecfdf3;color:#027a48;font-size:14px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.card{background:#fff;border:1px solid #e6eaf0;border-radius:16px;padding:16px}.stat{font-size:27px;font-weight:800;margin-top:5px}.label{font-size:13px;color:#667085}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:20px 0}.tab{padding:10px 13px;border-radius:10px;background:#e9eef7;font-weight:700}.tab.active{background:#172033;color:#fff}
+.panel{background:#fff;border:1px solid #e6eaf0;border-radius:16px;padding:18px;margin-bottom:16px}.panel h2{margin:0 0 14px;font-size:18px}
+.formgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.field{display:flex;flex-direction:column;gap:6px}.field.full{grid-column:1/-1}.field label{font-size:13px;font-weight:700;color:#475467}.field input,.field select{width:100%;padding:11px 12px;border:1px solid #d7dce5;border-radius:10px;outline:none;background:#fff}.field input:focus,.field select:focus{border-color:#2563eb}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.tablewrap{overflow:auto}.table{width:100%;border-collapse:collapse;min-width:720px}.table th,.table td{text-align:left;padding:11px;border-bottom:1px solid #edf0f4;font-size:14px;vertical-align:top}.table th{background:#fafbfc}
+.badge{display:inline-block;padding:4px 8px;border-radius:99px;font-size:12px;font-weight:800}.present{background:#dcfce7;color:#166534}.late{background:#fef3c7;color:#92400e}.absent{background:#fee2e2;color:#991b1b}
+.company-card{display:flex;align-items:center;gap:12px}.logo{width:48px;height:48px;border-radius:12px;object-fit:cover;background:#eef2f7}.empty{padding:20px;text-align:center;color:#667085}
+.note{font-size:13px;color:#667085;line-height:1.5}.danger-note{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:12px;padding:12px;margin-bottom:14px}
+@media(max-width:850px){.grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:600px){.top{padding:11px}.wrap{padding:15px 11px}.grid{grid-template-columns:1fr 1fr}.formgrid{grid-template-columns:1fr}.userbox .email{display:none}.login{margin:4vh 12px;padding:22px}}
+</style>
+</head>
+<body>
+<header id="topbar" class="top hidden">
+  <div class="brand">🏢 Multi-Company Attendance</div>
+  <div class="userbox">
+    <img id="adminPhoto" class="avatar" alt="">
+    <span id="adminEmail" class="email"></span>
+    <button id="logoutBtn" class="btn danger">Logout</button>
+  </div>
+</header>
+
+<main class="wrap">
+<section id="loginScreen" class="login">
+  <h1>Admin Login</h1>
+  <p class="muted">Continue with any Google/Gmail account.</p>
+  <button id="googleBtn" class="btn google">
+    <span style="font-size:20px">G</span> Continue with Google
+  </button>
+  <div id="loginMsg"></div>
+  <p class="note" style="margin-top:15px">Google Sign-In must be enabled in Firebase Authentication and this website domain must be in Authorized domains.</p>
+</section>
+
+<section id="app" class="hidden">
+  <div class="danger-note">
+    <b>Security note:</b> this version treats every Google account that successfully signs in as a Super Admin, exactly as requested. That means anyone with a Google account can access the admin panel.
+  </div>
+
+  <div class="grid">
+    <div class="card"><div class="label">Companies</div><div id="statCompanies" class="stat">0</div></div>
+    <div class="card"><div class="label">Branches</div><div id="statBranches" class="stat">0</div></div>
+    <div class="card"><div class="label">Employees</div><div id="statEmployees" class="stat">0</div></div>
+    <div class="card"><div class="label">Today's Present</div><div id="statPresent" class="stat">0</div></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="companies">Companies</button>
+    <button class="tab" data-tab="branches">Branches</button>
+    <button class="tab" data-tab="employees">Employees</button>
+    <button class="tab" data-tab="attendance">Attendance</button>
+  </div>
+
+  <section id="tab-companies" class="tabbody">
+    <div class="panel">
+      <h2>Add Company</h2>
+      <div class="formgrid">
+        <div class="field"><label>Company / Brand Name</label><input id="companyName" placeholder="B.D. Bajar"></div>
+        <div class="field"><label>Phone</label><input id="companyPhone" placeholder="+91..."></div>
+        <div class="field"><label>Email</label><input id="companyEmail" type="email" placeholder="company@gmail.com"></div>
+        <div class="field"><label>Address</label><input id="companyAddress" placeholder="Company address"></div>
+        <div class="field"><label>Logo URL (optional)</label><input id="companyLogo" placeholder="https://..."></div>
+        <div class="field"><label>Background URL (optional)</label><input id="companyBg" placeholder="https://..."></div>
+      </div>
+      <div class="actions"><button id="addCompany" class="btn primary">Add Company</button></div>
+      <div id="companyMsg"></div>
+    </div>
+    <div class="panel"><h2>Company List</h2><div id="companyList" class="empty">Loading...</div></div>
+  </section>
+
+  <section id="tab-branches" class="tabbody hidden">
+    <div class="panel">
+      <h2>Add Branch</h2>
+      <div class="formgrid">
+        <div class="field"><label>Company</label><select id="branchCompany"></select></div>
+        <div class="field"><label>Branch Name</label><input id="branchName" placeholder="Main Branch"></div>
+        <div class="field"><label>Address</label><input id="branchAddress" placeholder="Branch address"></div>
+        <div class="field"><label>Phone</label><input id="branchPhone" placeholder="+91..."></div>
+      </div>
+      <div class="actions"><button id="addBranch" class="btn primary">Add Branch</button></div>
+      <div id="branchMsg"></div>
+    </div>
+    <div class="panel"><h2>Branch List</h2><div id="branchList" class="empty">Loading...</div></div>
+  </section>
+
+  <section id="tab-employees" class="tabbody hidden">
+    <div class="panel">
+      <h2>Add Employee</h2>
+      <div class="note">Employee login uses email/password internally. The employee sees only their own attendance; company data is separated by companyId in the database rules.</div>
+      <div class="formgrid" style="margin-top:12px">
+        <div class="field"><label>Company</label><select id="empCompany"></select></div>
+        <div class="field"><label>Branch</label><select id="empBranch"></select></div>
+        <div class="field"><label>Employee Name</label><input id="empName" placeholder="Employee name"></div>
+        <div class="field"><label>Employee ID</label><input id="empId" placeholder="EMP001"></div>
+        <div class="field"><label>Username</label><input id="empUsername" placeholder="employee001"></div>
+        <div class="field"><label>Password</label><input id="empPassword" type="password" placeholder="Minimum 6 characters"></div>
+        <div class="field"><label>Designation</label><input id="empDesignation" placeholder="Sales Executive"></div>
+        <div class="field"><label>Photo URL (optional)</label><input id="empPhoto" placeholder="https://..."></div>
+      </div>
+      <div class="actions"><button id="addEmployee" class="btn primary">Create Employee</button></div>
+      <div id="employeeMsg"></div>
+    </div>
+    <div class="panel"><h2>Employee List</h2><div id="employeeList" class="empty">Loading...</div></div>
+  </section>
+
+  <section id="tab-attendance" class="tabbody hidden">
+    <div class="panel">
+      <h2>Attendance</h2>
+      <div class="formgrid">
+        <div class="field"><label>Date</label><input id="attDate" type="date"></div>
+        <div class="field"><label>Company</label><select id="attCompany"></select></div>
+      </div>
+      <div class="actions"><button id="loadAttendance" class="btn primary">Load Attendance</button></div>
+      <div id="attendanceMsg"></div>
+    </div>
+    <div class="panel"><div id="attendanceList" class="empty">Select a date and company.</div></div>
+  </section>
+</section>
+</main>
+
+<script type="module">
+import { initializeApp, getApps, getApp, deleteApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import {
+  getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect,
+  getRedirectResult, onAuthStateChanged, signOut, setPersistence,
+  browserLocalPersistence
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import {
+  getDatabase, ref, get, set, push, update, remove
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyA0C8ZAlYUZQM4UYs49xBhyMHwArJDLJpA",
+  authDomain: "website-a091e.firebaseapp.com",
+  databaseURL: "https://website-a091e-default-rtdb.firebaseio.com",
+  projectId: "website-a091e",
+  storageBucket: "website-a091e.firebasestorage.app",
+  messagingSenderId: "204226900375",
+  appId: "1:204226900375:web:d635dc3888d304ec4b14d2",
+  measurementId: "G-FWWR65M866"
+};
+
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
+await setPersistence(auth, browserLocalPersistence);
+
+const $ = id => document.getElementById(id);
+const msg = (id, text, ok=false) => $(id).innerHTML = `<div class="${ok?'ok':'error'}">${escapeHtml(text)}</div>`;
+const escapeHtml = s => String(s ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+const uidKey = () => auth.currentUser?.uid || "";
+const today = () => new Date().toISOString().slice(0,10);
+$("attDate").value = today();
+
+let companies = {};
+let branches = {};
+let employees = {};
+let attendance = {};
+
+function showApp(user){
+  $("loginScreen").classList.add("hidden");
+  $("topbar").classList.remove("hidden");
+  $("app").classList.remove("hidden");
+  $("adminEmail").textContent = user.email || "";
+  $("adminPhoto").src = user.photoURL || "";
+}
+function showLogin(){
+  $("loginScreen").classList.remove("hidden");
+  $("topbar").classList.add("hidden");
+  $("app").classList.add("hidden");
+}
+function niceError(e){
+  const c=e?.code||"";
+  const m=e?.message||String(e);
+  const map={
+    "auth/unauthorized-domain":"This website domain is not authorized in Firebase Authentication. Add basujoshi.github.io in Authentication → Settings → Authorized domains.",
+    "auth/popup-blocked":"Google popup was blocked. Allow popups for this website and try again.",
+    "auth/popup-closed-by-user":"Google login window was closed before login completed.",
+    "auth/cancelled-popup-request":"Another Google login is already running.",
+    "auth/network-request-failed":"Internet connection problem. Check your network and try again.",
+    "auth/operation-not-allowed":"Google provider is not enabled in Firebase Authentication.",
+    "auth/invalid-api-key":"Firebase API key is invalid.",
+    "auth/internal-error":"Firebase returned an internal authentication error. Check Firebase Authentication settings."
+  };
+  return `${map[c] || m} [${c}]`;
+}
+
+$("googleBtn").onclick = async () => {
+  $("loginMsg").innerHTML = "";
+  $("googleBtn").disabled = true;
+  $("googleBtn").textContent = "Opening Google...";
+  try{
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({prompt:"select_account"});
+    await signInWithPopup(auth, provider);
+  }catch(e){
+    console.error(e);
+    if(e.code === "auth/popup-blocked"){
+      try{
+        await signInWithRedirect(auth, new GoogleAuthProvider());
+        return;
+      }catch(e2){ $("loginMsg").innerHTML=`<div class="error">${escapeHtml(niceError(e2))}</div>`; }
+    }else{
+      $("loginMsg").innerHTML=`<div class="error">${escapeHtml(niceError(e))}</div>`;
+    }
+  }finally{
+    $("googleBtn").disabled = false;
+    $("googleBtn").innerHTML = '<span style="font-size:20px">G</span> Continue with Google';
+  }
+};
+
+try{ await getRedirectResult(auth); }catch(e){ $("loginMsg").innerHTML=`<div class="error">${escapeHtml(niceError(e))}</div>`; }
+
+$("logoutBtn").onclick = async () => {
+  await signOut(auth);
+  showLogin();
+};
+
+onAuthStateChanged(auth, async user => {
+  if(!user){ showLogin(); return; }
+  try{
+    // As requested, every Google account becomes a superadmin record.
+    const userRef = ref(db, `users/${user.uid}`);
+    const snap = await get(userRef);
+    if(!snap.exists()){
+      await set(userRef,{
+        uid:user.uid,
+        role:"superadmin",
+        username:user.email || user.uid,
+        email:user.email || "",
+        name:user.displayName || "",
+        photoUrl:user.photoURL || "",
+        provider:"google",
+        createdAt:Date.now()
+      });
+    }else if(snap.val().role !== "superadmin"){
+      await update(userRef,{role:"superadmin"});
+    }
+    showApp(user);
+    await loadAll();
+  }catch(e){
+    console.error(e);
+    showLogin();
+    $("loginMsg").innerHTML=`<div class="error"><b>Database error:</b> ${escapeHtml(niceError(e))}<br><br>Check Realtime Database URL and Rules.</div>`;
+  }
+});
+
+async function loadAll(){
+  const [c,b,u] = await Promise.all([
+    get(ref(db,"companies")),
+    get(ref(db,"branches")),
+    get(ref(db,"users"))
+  ]);
+  companies=c.val()||{};
+  branches=b.val()||{};
+  const all=u.val()||{};
+  employees=Object.fromEntries(Object.entries(all).filter(([k,v])=>v && v.role==="employee"));
+  renderCompanies(); renderBranches(); fillSelects(); renderEmployees();
+  $("statCompanies").textContent=Object.keys(companies).length;
+  $("statBranches").textContent=Object.values(branches).reduce((n,x)=>n+Object.keys(x||{}).length,0);
+  $("statEmployees").textContent=Object.keys(employees).length;
+  await loadTodayPresent();
+}
+
+function fillSelects(){
+  const opts=Object.entries(companies).map(([id,c])=>`<option value="${escapeHtml(id)}">${escapeHtml(c.name||id)}</option>`).join("");
+  ["branchCompany","empCompany","attCompany"].forEach(id=>$(id).innerHTML=opts||'<option value="">No company</option>');
+  updateEmployeeBranches();
+}
+function branchArray(companyId){
+  return Object.entries(branches[companyId]||{}).map(([id,b])=>({id,...b}));
+}
+$("empCompany").onchange=updateEmployeeBranches;
+function updateEmployeeBranches(){
+  const arr=branchArray($("empCompany").value);
+  $("empBranch").innerHTML=arr.map(b=>`<option value="${escapeHtml(b.id)}">${escapeHtml(b.name||b.id)}</option>`).join("") || '<option value="">No branch</option>';
+}
+
+function renderCompanies(){
+  const arr=Object.entries(companies);
+  $("companyList").innerHTML=arr.length?`<div class="tablewrap"><table class="table"><tr><th>Company</th><th>Contact</th><th>Address</th><th>ID</th></tr>${arr.map(([id,c])=>`
+<tr><td><div class="company-card"><img class="logo" src="${escapeHtml(c.logo||"")}" onerror="this.style.visibility='hidden'"><b>${escapeHtml(c.name)}</b></div></td><td>${escapeHtml(c.phone||"")}<br>${escapeHtml(c.email||"")}</td><td>${escapeHtml(c.address||"")}</td><td>${escapeHtml(id)}</td></tr>`).join("")}</table></div>`:'<div class="empty">No companies yet.</div>';
+}
+function renderBranches(){
+  const arr=[];
+  Object.entries(branches).forEach(([cid,bs])=>Object.entries(bs||{}).forEach(([bid,b])=>arr.push({cid,bid,...b})));
+  $("branchList").innerHTML=arr.length?`<div class="tablewrap"><table class="table"><tr><th>Branch</th><th>Company</th><th>Address</th><th>Phone</th></tr>${arr.map(x=>`
+<tr><td><b>${escapeHtml(x.name)}</b></td><td>${escapeHtml(companies[x.cid]?.name||x.cid)}</td><td>${escapeHtml(x.address||"")}</td><td>${escapeHtml(x.phone||"")}</td></tr>`).join("")}</table></div>`:'<div class="empty">No branches yet.</div>';
+}
+function renderEmployees(){
+  const arr=Object.entries(employees);
+  $("employeeList").innerHTML=arr.length?`<div class="tablewrap"><table class="table"><tr><th>Employee</th><th>Employee ID</th><th>Company / Branch</th><th>Designation</th><th>Username</th></tr>${arr.map(([uid,e])=>`
+<tr><td><b>${escapeHtml(e.name||"")}</b><br><span class="muted">${escapeHtml(e.email||"")}</span></td><td>${escapeHtml(e.employeeId||"")}</td><td>${escapeHtml(companies[e.companyId]?.name||e.companyId||"")}<br>${escapeHtml(branches[e.companyId]?.[e.branchId]?.name||e.branchId||"")}</td><td>${escapeHtml(e.designation||"")}</td><td>${escapeHtml(e.username||"")}</td></tr>`).join("")}</table></div>`:'<div class="empty">No employees yet.</div>';
+}
+
+$("addCompany").onclick=async()=>{
+  const name=$("companyName").value.trim();
+  if(!name){msg("companyMsg","Company name is required.");return}
+  try{
+    const r=push(ref(db,"companies"));
+    await set(r,{companyId:r.key,name,phone:$("companyPhone").value.trim(),email:$("companyEmail").value.trim(),address:$("companyAddress").value.trim(),logo:$("companyLogo").value.trim(),background:$("companyBg").value.trim(),createdAt:Date.now(),createdBy:uidKey()});
+    msg("companyMsg","Company added successfully.",true);
+    ["companyName","companyPhone","companyEmail","companyAddress","companyLogo","companyBg"].forEach(id=>$(id).value="");
+    await loadAll();
+  }catch(e){msg("companyMsg",niceError(e))}
+};
+
+$("addBranch").onclick=async()=>{
+  const cid=$("branchCompany").value, name=$("branchName").value.trim();
+  if(!cid||!name){msg("branchMsg","Company and branch name are required.");return}
+  try{
+    const r=push(ref(db,`branches/${cid}`));
+    await set(r,{branchId:r.key,name,address:$("branchAddress").value.trim(),phone:$("branchPhone").value.trim(),createdAt:Date.now(),createdBy:uidKey()});
+    msg("branchMsg","Branch added successfully.",true);
+    ["branchName","branchAddress","branchPhone"].forEach(id=>$(id).value="");
+    await loadAll();
+  }catch(e){msg("branchMsg",niceError(e))}
+};
+
+function employeeEmail(username){
+  return String(username||"").trim().toLowerCase().replace(/[^a-z0-9._-]/g,"")+"@bdbajar.local";
+}
+$("addEmployee").onclick=async()=>{
+  const cid=$("empCompany").value,bid=$("empBranch").value,name=$("empName").value.trim(),username=$("empUsername").value.trim(),password=$("empPassword").value;
+  if(!cid||!bid||!name||!username||password.length<6){msg("employeeMsg","Company, branch, name, username and password (minimum 6 characters) are required.");return}
+  $("addEmployee").disabled=true;
+  try{
+    // Secondary Firebase app prevents admin login from being replaced by employee login.
+    const secondaryName="employeeCreate_"+Date.now();
+    const secondary=initializeApp(firebaseConfig,secondaryName);
+    const {getAuth:createAuth, createUserWithEmailAndPassword}=await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js");
+    const secAuth=createAuth(secondary);
+    const cred=await createUserWithEmailAndPassword(secAuth,employeeEmail(username),password);
+    await set(ref(db,`users/${cred.user.uid}`),{
+      uid:cred.user.uid,role:"employee",username,email:employeeEmail(username),
+      name,employeeId:$("empId").value.trim(),designation:$("empDesignation").value.trim(),
+      photoUrl:$("empPhoto").value.trim(),companyId:cid,branchId:bid,createdAt:Date.now(),createdBy:uidKey()
+    });
+    await set(ref(db,`employeeIndex/${cid}/${cred.user.uid}`),true);
+    await signOut(secAuth); await deleteApp(secondary);
+    msg("employeeMsg","Employee created successfully.",true);
+    ["empName","empId","empUsername","empPassword","empDesignation","empPhoto"].forEach(id=>$(id).value="");
+    await loadAll();
+  }catch(e){msg("employeeMsg",niceError(e));}
+  finally{$("addEmployee").disabled=false}
+};
+
+async function loadTodayPresent(){
+  let n=0;
+  const date=today();
+  for(const uid of Object.keys(employees)){
+    const s=await get(ref(db,`attendance/${uid}/${date}`));
+    if(s.exists() && s.val()?.status && s.val().status!=="absent") n++;
+  }
+  $("statPresent").textContent=n;
+}
+
+$("loadAttendance").onclick=loadAttendance;
+async function loadAttendance(){
+  const date=$("attDate").value, cid=$("attCompany").value;
+  if(!date||!cid){msg("attendanceMsg","Select date and company.");return}
+  const rows=[];
+  for(const [uid,e] of Object.entries(employees)){
+    if(e.companyId!==cid) continue;
+    const s=await get(ref(db,`attendance/${uid}/${date}`));
+    const a=s.val();
+    rows.push({uid,e,a});
+  }
+  $("attendanceList").innerHTML=rows.length?`<div class="tablewrap"><table class="table"><tr><th>Employee</th><th>Status</th><th>Check In</th><th>Check Out</th><th>Working</th><th>Location</th></tr>${rows.map(x=>{
+    const a=x.a||{};
+    const status=a.status||"Absent";
+    const cls=status.toLowerCase().includes("late")?"late":status.toLowerCase()==="present"?"present":"absent";
+    return `<tr><td><b>${escapeHtml(x.e.name||"")}</b><br>${escapeHtml(x.e.employeeId||"")}</td><td><span class="badge ${cls}">${escapeHtml(status)}</span></td><td>${escapeHtml(a.checkIn?.time||a.checkInTime||"—")}</td><td>${escapeHtml(a.checkOut?.time||a.checkOutTime||"—")}</td><td>${escapeHtml(a.workingHours||"—")}</td><td>${a.checkIn?.lat!=null?escapeHtml(a.checkIn.lat+", "+a.checkIn.lng):"—"}</td></tr>`;
+  }).join("")}</table></div>`:'<div class="empty">No employees found for this company.</div>';
+}
+
+document.querySelectorAll(".tab").forEach(btn=>btn.onclick=()=>{
+  document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+  document.querySelectorAll(".tabbody").forEach(x=>x.classList.add("hidden"));
+  btn.classList.add("active");
+  $("tab-"+btn.dataset.tab).classList.remove("hidden");
+});
+</script>
+</body>
+</html>
